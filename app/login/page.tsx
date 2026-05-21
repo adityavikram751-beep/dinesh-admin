@@ -7,6 +7,11 @@ import { apiRequest } from "../lib/api";
 
 const storageKey = "fitadmin_logged_in";
 const tokenKey = "fitadmin_token";
+const authCookieKey = "fitadmin_auth";
+
+function setAuthCookie() {
+  document.cookie = `${authCookieKey}=true; path=/; max-age=604800; SameSite=Lax`;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -130,6 +135,8 @@ export default function LoginPage() {
         "true"
       );
 
+      setAuthCookie();
+
       localStorage.setItem(
         "fitadmin_email",
         email
@@ -172,8 +179,12 @@ export default function LoginPage() {
       // ================= REDIRECT =================
 
       setTimeout(() => {
+        const nextPath =
+          new URLSearchParams(window.location.search).get("next") ||
+          "/enquiry";
+
         router.push(
-          "/dashboard"
+          nextPath
         );
       }, 500);
     } catch (err) {

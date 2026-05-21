@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+
 import {
   usePathname,
   useRouter,
@@ -15,7 +16,7 @@ import {
   useState,
 } from "react";
 
-import { notifications } from "../data";
+import { io } from "socket.io-client";
 
 import { icons } from "./Icons";
 
@@ -26,6 +27,9 @@ const storageKey =
 
 const tokenKey =
   "fitadmin_token";
+
+const authCookieKey =
+  "fitadmin_auth";
 
 const BASE_URL =
   "https://dinesh-sagel-backend.onrender.com";
@@ -48,15 +52,16 @@ type User = {
   profilePicture: string;
 };
 
+type NotificationType = {
+  title: string;
+  body: string;
+  time: string;
+};
+
 // ================= ROUTES =================
 
 const routes: Route[] = [
-  [
-    "/dashboard",
-    "Dashboard",
-    "Home",
-  ],
-
+ 
   [
     "/enquiry",
     "Enquiry",
@@ -86,6 +91,12 @@ const routes: Route[] = [
     "Gym Plan",
     "List",
   ],
+
+  [
+    "/banner",
+    "Banner",
+    "Image",
+  ],
 ];
 
 // ================= TITLES =================
@@ -94,10 +105,7 @@ const titles: Record<
   string,
   [string, string]
 > = {
-  "/dashboard": [
-    "Dashboard",
-    "Today's studio performance and member activity.",
-  ],
+
 
   "/enquiry": [
     "Enquiry",
@@ -123,6 +131,11 @@ const titles: Record<
     "Gym Plan",
     "Manage gym plans.",
   ],
+
+  "/banner": [
+    "Banner",
+    "Manage banner images.",
+  ],
 };
 
 // ================= COMPONENT =================
@@ -132,6 +145,7 @@ export default function AdminShell({
 }: {
   children: ReactNode;
 }) {
+
   const pathname =
     usePathname();
 
@@ -151,6 +165,15 @@ export default function AdminShell({
     setNotificationOpen,
   ] = useState(false);
 
+  // ================= NOTIFICATIONS =================
+
+  const [
+    notifications,
+    setNotifications,
+  ] = useState<
+    NotificationType[]
+  >([]);
+
   // ================= USER =================
 
   const [user, setUser] =
@@ -162,22 +185,139 @@ export default function AdminShell({
       profilePicture: "",
     });
 
+  // ================= SOCKET IO =================
+
+  useEffect(() => {
+
+    const token =
+      localStorage.getItem(
+        tokenKey
+      );
+
+    console.log(
+      "TOKEN =>",
+      token
+    );
+
+    // SOCKET CONNECTION
+
+    const socket = io(
+      "https://dinesh-sagel-backend.onrender.com",
+      {
+
+        auth: {
+          token,
+        },
+
+        transports: [
+          "websocket",
+        ],
+      }
+    );
+
+    // CONNECTED
+
+    socket.on(
+      "connect",
+      () => {
+
+        console.log(
+          "✅ Socket Connected"
+        );
+
+        console.log(
+          "SOCKET ID =>",
+          socket.id
+        );
+      }
+    );
+
+    // REALTIME ENQUIRY
+
+    socket.on(
+      "new_enquiry",
+      (data) => {
+
+        console.log(
+          "📩 New Enquiry =>",
+          data
+        );
+
+        const enquiry =
+          data.enquiry;
+
+        setNotifications(
+          (prev) => [
+
+            {
+              title:
+                enquiry.name,
+
+              body:
+                enquiry.message,
+
+              time:
+                new Date().toLocaleTimeString(),
+            },
+
+            ...prev,
+          ]
+        );
+      }
+    );
+
+    // DISCONNECT
+
+    socket.on(
+      "disconnect",
+      () => {
+
+        console.log(
+          "🔴 Socket Disconnected"
+        );
+      }
+    );
+
+    // ERROR
+
+    socket.on(
+      "connect_error",
+      (error) => {
+
+        console.log(
+          "❌ Socket Error =>",
+          error.message
+        );
+      }
+    );
+
+    // CLEANUP
+
+    return () => {
+
+      socket.disconnect();
+    };
+
+  }, []);
+
   // ================= LOAD =================
 
   useEffect(() => {
+
     if (
       localStorage.getItem(
         storageKey
       ) !== "true"
     ) {
-      router.replace("/login");
+
+      router.replace(
+        "/login"
+      );
 
       return;
     }
 
     loadProfile();
-
-    // ================= LIVE PROFILE UPDATE =================
 
     window.addEventListener(
       "profileUpdated",
@@ -187,17 +327,21 @@ export default function AdminShell({
     setReady(true);
 
     return () => {
+
       window.removeEventListener(
         "profileUpdated",
         loadProfile
       );
     };
+
   }, [router]);
 
   // ================= LOAD PROFILE =================
 
   async function loadProfile() {
+
     try {
+
       const token =
         localStorage.getItem(
           tokenKey
@@ -220,12 +364,8 @@ export default function AdminShell({
       const data =
         await response.json();
 
-      console.log(
-        "NAVBAR PROFILE =>",
-        data
-      );
-
       if (data?.success) {
+
         setUser({
           name:
             data.admin
@@ -248,7 +388,9 @@ export default function AdminShell({
             "",
         });
       }
+
     } catch (error) {
+
       console.log(error);
     }
   }
@@ -256,9 +398,15 @@ export default function AdminShell({
   // ================= LOGOUT =================
 
   function handleLogout() {
+
     localStorage.clear();
 
-    router.push("/logout");
+    document.cookie =
+      `${authCookieKey}=; path=/; max-age=0; SameSite=Lax`;
+
+    router.push(
+      "/logout"
+    );
   }
 
   // ================= LOADING =================
@@ -267,17 +415,29 @@ export default function AdminShell({
     return null;
   }
 
-  // ================= PAGE TITLE =================
+  // ================= TITLE =================
 
   const [heading] =
     titles[pathname] ||
-    titles["/dashboard"];
+    titles["/d"];
+
+  const currentDate =
+    new Date().toLocaleDateString(
+      "en-US",
+      {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }
+    );
 
   // ================= UI =================
 
   return (
+
     <div className="app-shell">
-      {/* ================= SIDEBAR ================= */}
+
+      {/* SIDEBAR */}
 
       <aside
         className={`sidebar ${
@@ -286,21 +446,24 @@ export default function AdminShell({
             : ""
         }`}
       >
+
         <div className="brand">
           <span>
             {user.gym}
           </span>
         </div>
 
-        {/* ================= NAVIGATION ================= */}
+        {/* NAVIGATION */}
 
         <nav className="nav">
+
           {routes.map(
             ([
               href,
               label,
               icon,
             ]) => (
+
               <Link
                 className={
                   pathname === href
@@ -315,6 +478,7 @@ export default function AdminShell({
                   )
                 }
               >
+
                 {
                   icons[
                     icon
@@ -322,14 +486,17 @@ export default function AdminShell({
                 }
 
                 {label}
+
               </Link>
             )
           )}
+
         </nav>
 
-        {/* ================= LOGOUT ================= */}
+        {/* LOGOUT */}
 
         <div className="sidebar-footer">
+
           <button
             className="danger-btn"
             onClick={
@@ -337,20 +504,27 @@ export default function AdminShell({
             }
             type="button"
           >
+
             {icons.LogOut}
 
             Logout
+
           </button>
+
         </div>
+
       </aside>
 
-      {/* ================= MAIN ================= */}
+      {/* MAIN */}
 
       <main className="main">
-        {/* ================= TOPBAR ================= */}
+
+        {/* TOPBAR */}
 
         <header className="topbar">
+
           <div className="page-title">
+
             <button
               className="icon-btn mobile-menu"
               onClick={() =>
@@ -359,39 +533,36 @@ export default function AdminShell({
                 )
               }
               type="button"
-              aria-label="Open menu"
             >
+
               {icons.Menu}
+
             </button>
 
             <div>
+
               <h1>
                 {heading}
               </h1>
+
             </div>
+
           </div>
 
-          {/* ================= ACTIONS ================= */}
+          {/* ACTIONS */}
 
           <div className="topbar-actions">
-            {/* SEARCH */}
 
-            <div className="search-box header-search">
-              <input
-                aria-label="Search"
-                placeholder="Search..."
-              />
-            </div>
-
-            {/* DATE */}
+            
 
             <span className="header-date">
-              May 14, 2026
+              {currentDate}
             </span>
 
             {/* NOTIFICATIONS */}
 
             <div className="notification-wrap">
+
               <button
                 className="icon-btn notification-btn"
                 onClick={() =>
@@ -403,29 +574,39 @@ export default function AdminShell({
                   )
                 }
                 type="button"
-                aria-label="Open notifications"
               >
+
                 {icons.Bell}
 
                 <span className="notification-dot">
+
                   {
                     notifications.length
                   }
+
                 </span>
+
               </button>
 
               {notificationOpen && (
-                <NotificationMenu />
+
+                <NotificationMenu
+                  notifications={
+                    notifications
+                  }
+                />
+
               )}
+
             </div>
 
-            {/* ================= PROFILE ================= */}
+            {/* PROFILE */}
 
             <Link
               className="profile"
               href="/settings"
-              title={user.email}
             >
+
               <Image
                 src={
                   user.profilePicture
@@ -437,12 +618,10 @@ export default function AdminShell({
                 height={48}
                 className="avatar-img"
                 unoptimized
-                key={
-                  user.profilePicture
-                }
               />
 
               <span className="profile-copy">
+
                 <strong>
                   {user.name}
                 </strong>
@@ -450,27 +629,41 @@ export default function AdminShell({
                 <small>
                   Admin
                 </small>
+
               </span>
+
             </Link>
+
           </div>
+
         </header>
 
-        {/* ================= PAGE CONTENT ================= */}
+        {/* PAGE CONTENT */}
 
         <div className="page-content">
           {children}
         </div>
+
       </main>
+
     </div>
   );
 }
 
 // ================= NOTIFICATION MENU =================
 
-function NotificationMenu() {
+function NotificationMenu({
+  notifications,
+}: {
+  notifications: NotificationType[];
+}) {
+
   return (
+
     <div className="notification-menu">
+
       <div className="notification-head">
+
         <strong>
           Notifications
         </strong>
@@ -478,39 +671,46 @@ function NotificationMenu() {
         <span>
           {
             notifications.length
-          }{" "}
-          new
+          } new
         </span>
+
       </div>
 
       <div className="notification-list">
+
         {notifications.map(
-          (item) => (
+          (
+            item,
+            index
+          ) => (
+
             <div
               className="notification-item"
-              key={
-                item.title
-              }
+              key={index}
             >
+
               <div>
+
                 <strong>
-                  {
-                    item.title
-                  }
+                  {item.title}
                 </strong>
 
                 <p>
                   {item.body}
                 </p>
+
               </div>
 
               <span>
                 {item.time}
               </span>
+
             </div>
           )
         )}
+
       </div>
+
     </div>
   );
 }

@@ -6,6 +6,11 @@ import { apiRequest } from "../lib/api";
 
 const storageKey = "fitadmin_logged_in";
 const tokenKey = "fitadmin_token";
+const authCookieKey = "fitadmin_auth";
+
+function clearAuthCookie() {
+  document.cookie = `${authCookieKey}=; path=/; max-age=0; SameSite=Lax`;
+}
 
 export default function LogoutPage() {
   const [message, setMessage] = useState("Closing your admin session...");
@@ -25,6 +30,7 @@ export default function LogoutPage() {
       } finally {
         localStorage.removeItem(storageKey);
         localStorage.removeItem(tokenKey);
+        clearAuthCookie();
       }
     }
 

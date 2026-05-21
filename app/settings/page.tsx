@@ -265,64 +265,17 @@ export default function SettingsPage() {
   return (
     <AdminShell>
       <form
+        className="settings-card"
         onSubmit={handleSubmit}
-        style={{
-          padding: "30px",
-          borderRadius: "24px",
-          background: "#fff",
-          boxShadow:
-            "0 10px 30px rgba(0,0,0,0.06)",
-          maxWidth: "700px",
-          margin: "0 auto",
-        }}
       >
-        {/* ================= TITLE ================= */}
-
-        <h2
-          style={{
-            fontSize: "30px",
-            marginBottom: "24px",
-            fontWeight: "700",
-            color: "#111827",
-          }}
-        >
+        <h2>
           Admin Settings
         </h2>
 
-        {/* ================= PROFILE IMAGE ================= */}
-
-        <div
-          style={{
-            marginBottom: "24px",
-          }}
-        >
-          <label
-            style={{
-              display: "block",
-              marginBottom:
-                "10px",
-              fontWeight: "600",
-            }}
-          >
-            Profile Image
-          </label>
-
-          <input
-            type="file"
-            accept="image/*"
-            onChange={
-              handleImageUpload
-            }
-          />
-
-          {/* ================= IMAGE PREVIEW ================= */}
-
-          <div
-            style={{
-              marginTop: "18px",
-            }}
-          >
+        <div className="settings-grid">
+          <aside className="settings-profile-panel">
             <img
+              className="settings-avatar"
               src={
                 user.profilePicture?.trim()
                   ? user.profilePicture
@@ -333,45 +286,36 @@ export default function SettingsPage() {
                 e.currentTarget.src =
                   "https://ui-avatars.com/api/?name=Admin";
               }}
-              style={{
-                width: "140px",
-                height: "140px",
-                objectFit:
-                  "cover",
-                borderRadius:
-                  "18px",
-                border:
-                  "2px solid #eee",
-              }}
             />
-          </div>
-        </div>
 
-        {/* ================= FORM ================= */}
+            <div className="settings-profile-copy">
+              <strong>
+                {user.username || "Admin"}
+              </strong>
+              <span>
+                {user.email || "admin account"}
+              </span>
+            </div>
 
-        <div
-          style={{
-            display: "grid",
-            gap: "24px",
-          }}
-        >
-          {/* USERNAME */}
+            <label className="settings-upload-btn">
+              <span>
+                Change Photo
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={
+                  handleImageUpload
+                }
+              />
+            </label>
+          </aside>
 
-          <label
-            style={{
-              display: "flex",
-              flexDirection:
-                "column",
-              gap: "10px",
-            }}
-          >
-            <span
-              style={{
-                fontWeight: "600",
-              }}
-            >
-              Username
-            </span>
+          <div className="settings-fields">
+            <label className="field">
+              <span>
+                Username
+              </span>
 
             <input
               required
@@ -393,36 +337,13 @@ export default function SettingsPage() {
                   })
                 )
               }
-              style={{
-                height: "52px",
-                borderRadius:
-                  "14px",
-                border:
-                  "1px solid #d1d5db",
-                padding:
-                  "0 16px",
-                fontSize: "15px",
-              }}
             />
           </label>
 
-          {/* EMAIL */}
-
-          <label
-            style={{
-              display: "flex",
-              flexDirection:
-                "column",
-              gap: "10px",
-            }}
-          >
-            <span
-              style={{
-                fontWeight: "600",
-              }}
-            >
-              Email
-            </span>
+            <label className="field">
+              <span>
+                Email
+              </span>
 
             <input
               required
@@ -443,76 +364,26 @@ export default function SettingsPage() {
                   })
                 )
               }
-              style={{
-                height: "52px",
-                borderRadius:
-                  "14px",
-                border:
-                  "1px solid #d1d5db",
-                padding:
-                  "0 16px",
-                fontSize: "15px",
-              }}
             />
           </label>
-        </div>
 
-        {/* ================= BUTTON ================= */}
-
-        <div
-          style={{
-            marginTop: "28px",
-          }}
-        >
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              height: "52px",
-              padding: "0 24px",
-              border: "none",
-              borderRadius:
-                "14px",
-              background:
-                "#111827",
-              color: "#fff",
-              fontWeight: "600",
-              fontSize: "15px",
-              cursor: "pointer",
-              opacity: loading
-                ? 0.7
-                : 1,
-            }}
-          >
-            {loading
-              ? "Saving..."
-              : "Save Settings"}
-          </button>
+            <div className="actions settings-actions">
+              <button
+                className="primary-btn"
+                type="submit"
+                disabled={loading}
+              >
+                {loading
+                  ? "Saving..."
+                  : "Save Settings"}
+              </button>
+            </div>
+          </div>
         </div>
       </form>
 
-      {/* ================= TOAST ================= */}
-
       {toast && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "20px",
-            right: "20px",
-            background:
-              "#111827",
-            color: "#fff",
-            padding:
-              "14px 18px",
-            borderRadius:
-              "12px",
-            fontSize: "14px",
-            fontWeight: "500",
-            boxShadow:
-              "0 10px 20px rgba(0,0,0,0.2)",
-            zIndex: 999,
-          }}
-        >
+        <div className="toast show">
           {toast}
         </div>
       )}

@@ -1,43 +1,152 @@
-export const API_BASE_URL = "https://dinesh-sagel-backend.onrender.com";
+export const API_BASE_URL =
+  "https://dinesh-sagel-backend.onrender.com";
 
-type ApiOptions = {
-  method?: "GET" | "POST" | "PUT" | "DELETE";
-  body?: Record<string, unknown>;
+// ================= TYPES =================
+
+export type ApiOptions = {
+  method?:
+    | "GET"
+    | "POST"
+    | "PUT"
+    | "PATCH"
+    | "DELETE";
+
+  body?:
+    | Record<
+        string,
+        unknown
+      >
+    | FormData;
+
   token?: string | null;
 };
 
-export async function apiRequest<T = Record<string, unknown>>(path: string, options: ApiOptions = {}): Promise<T> {
-  const headers: HeadersInit = {
-    "Content-Type": "application/json"
-  };
+// ================= API REQUEST =================
 
-  if (options.token) {
-    headers.Authorization = `Bearer ${options.token}`;
+export async function apiRequest<
+  T = Record<
+    string,
+    unknown
+  >
+>(
+  path: string,
+
+  options: ApiOptions = {}
+): Promise<T> {
+  // ================= TOKEN =================
+
+  const savedToken =
+    typeof window !==
+    "undefined"
+      ? localStorage.getItem(
+          "fitadmin_token"
+        )
+      : null;
+
+  const token =
+    options.token ||
+    savedToken;
+
+  // ================= CHECK FORMDATA =================
+
+  const isFormData =
+    options.body instanceof
+    FormData;
+
+  // ================= HEADERS =================
+
+  const headers: HeadersInit =
+    {};
+
+  // JSON only if NOT FormData
+
+  if (!isFormData) {
+    headers[
+      "Content-Type"
+    ] =
+      "application/json";
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: options.method || "GET",
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined
-  });
+  // TOKEN
 
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  // ================= BODY =================
+
+  let requestBody:
+    | BodyInit
+    | undefined;
+
+  if (isFormData) {
+    requestBody =
+      options.body as FormData;
+  } else if (
+    options.body
+  ) {
+    requestBody =
+      JSON.stringify(
+        options.body
+      );
+  }
+
+  // ================= FETCH =================
+
+  const response =
+    await fetch(
+      `${API_BASE_URL}${path}`,
+      {
+        method:
+          options.method ||
+          "GET",
+
+        headers,
+
+        body: requestBody,
+      }
+    );
+
+  // ================= RESPONSE =================
+
+  const text =
+    await response.text();
+
+  // IMPORTANT 😄
+  console.log(
+    "RAW RESPONSE =>",
+    text
+  );
+
+  let data: any = {};
+
+  // ================= SAFE JSON =================
+
+  try {
+    data = text
+      ? JSON.parse(text)
+      : {};
+  } catch {
+    data = {
+      message:
+        text ||
+        "Server error",
+    };
+  }
+
+  // ================= ERROR =================
 
   if (!response.ok) {
-    const message = typeof data?.message === "string" ? data.message : "Something went wrong";
-    throw new Error(message);
+    console.log(
+      "API ERROR =>",
+      data
+    );
+
+    throw new Error(
+      data?.message ||
+        "Server error"
+    );
   }
 
   return data as T;
-}
-
-export function readToken(data: Record<string, unknown>) {
-  const token =
-    data.token ||
-    data.accessToken ||
-    (typeof data.data === "object" && data.data !== null && "token" in data.data ? data.data.token : null) ||
-    (typeof data.data === "object" && data.data !== null && "accessToken" in data.data ? data.data.accessToken : null);
-
-  return typeof token === "string" ? token : "";
 }
