@@ -5,6 +5,8 @@ import type { FormEvent } from "react";
 import AdminShell from "../components/AdminShell";
 import { apiRequest } from "../lib/api";
 
+const VIDEO_PLANS_URL = "https://dinesh-sagel-backend.onrender.com/api/video-plans";
+
 // ================= TYPES =================
 
 type GymPlan = {
@@ -12,17 +14,39 @@ type GymPlan = {
   title: string;
   name: string;
   description: string;
+  currencyCode?: string;
   price: number | string;
   duration: string;
   category: string;
   features: string[];
 };
 
+// ================= CURRENCY SYMBOL MAP =================
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  INR: "₹",
+  USD: "$",
+  GBP: "£",
+  EUR: "€",
+  AED: "د.إ",
+  AUD: "A$",
+  CAD: "C$",
+  SGD: "S$",
+  SAR: "﷼",
+  NZD: "NZ$",
+};
+
+function getCurrencySymbol(code: string): string {
+  if (!code) return "₹";
+  return CURRENCY_SYMBOLS[code.toUpperCase()] || code.toUpperCase();
+}
+
 // ================= EMPTY FORM =================
 
 const emptyForm = {
   title: "",
   description: "",
+  currencyCode: "INR",
   price: "",
   duration: "",
   category: "video",
@@ -64,18 +88,27 @@ export default function GymPlanPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => { loadPlans(); }, []);
-  useEffect(() => { loadPlans(); }, [form.category]);
+
+  // Category ya currencyCode change hone pe reload
+  useEffect(() => { loadPlans(); }, [form.category, form.currencyCode]);
 
   // ================= GET DATA =================
 
   async function loadPlans() {
     try {
       const isVideo = form.category.toLowerCase() === "video";
-      const endpoint = isVideo
-        ? "/api/video-plans"
-        : `/api/plans/plans?category=${form.category}`;
 
-      const data = await apiRequest<any>(endpoint);
+      let data: any;
+
+      if (isVideo) {
+        // Video — currencyCode se filter
+        const url = `${VIDEO_PLANS_URL}?currencyCode=${form.currencyCode || "INR"}`;
+        const res = await fetch(url);
+        data = await res.json();
+      } else {
+        data = await apiRequest<any>(`/api/plans/plans?category=${form.category}`);
+      }
+
       console.log("LOADED DATA =>", data);
       setPlans(extractPlans(data));
     } catch (error) {
@@ -96,12 +129,14 @@ export default function GymPlanPage() {
       const payload = isVideo
         ? {
             title: form.title,
+            currencyCode: form.currencyCode || "INR",
             price: Number(form.price),
             duration: form.duration,
           }
         : {
             name: form.title,
             description: form.description,
+            currencyCode: form.currencyCode || "INR",
             price: Number(form.price),
             duration: form.duration,
             category: form.category,
@@ -115,9 +150,17 @@ export default function GymPlanPage() {
 
       if (isVideo) {
         if (!editingId) {
-          await apiRequest("/api/video-plans", { method: "POST", body: payload });
+          await fetch(VIDEO_PLANS_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
         } else {
-          await apiRequest(`/api/video-plans/${editingId}`, { method: "PUT", body: payload });
+          await fetch(`${VIDEO_PLANS_URL}/${editingId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
         }
       } else {
         if (!editingId) {
@@ -127,7 +170,7 @@ export default function GymPlanPage() {
         }
       }
 
-      setForm({ ...emptyForm, category: form.category });
+      setForm({ ...emptyForm, category: form.category, currencyCode: form.currencyCode });
       setEditingId("");
       loadPlans();
     } catch (error) {
@@ -148,6 +191,7 @@ export default function GymPlanPage() {
       duration: safeString(plan.duration),
       category: safeString(plan.category) || "video",
       featuresInput: Array.isArray(plan.features) ? plan.features.join(", ") : "",
+      currencyCode: safeString(plan.currencyCode) || "INR",
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -157,13 +201,18 @@ export default function GymPlanPage() {
   async function handleDelete(id: string) {
     try {
       const isVideo = form.category.toLowerCase() === "video";
-      const endpoint = isVideo ? `/api/video-plans/${id}` : `/api/plans/plans/${id}`;
-      await apiRequest(endpoint, { method: "DELETE" });
+      if (isVideo) {
+        await fetch(`${VIDEO_PLANS_URL}/${id}`, { method: "DELETE" });
+      } else {
+        await apiRequest(`/api/plans/plans/${id}`, { method: "DELETE" });
+      }
       loadPlans();
     } catch (error) {
       console.log(error);
     }
   }
+
+  const isVideo = form.category.toLowerCase() === "video";
 
   // ================= UI =================
 
@@ -185,6 +234,23 @@ export default function GymPlanPage() {
               value={form.title}
               onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
             />
+
+            {/* CURRENCY CODE DROPDOWN */}
+            <select
+              value={form.currencyCode}
+              onChange={(e) => setForm((prev) => ({ ...prev, currencyCode: e.target.value }))}
+            >
+              <option value="INR">INR — ₹ Indian Rupee</option>
+              <option value="USD">USD — $ US Dollar</option>
+              <option value="GBP">GBP — £ British Pound</option>
+              <option value="EUR">EUR — € Euro</option>
+              <option value="AED">AED — د.إ UAE Dirham</option>
+              <option value="AUD">AUD — A$ Australian Dollar</option>
+              <option value="CAD">CAD — C$ Canadian Dollar</option>
+              <option value="SGD">SGD — S$ Singapore Dollar</option>
+              <option value="SAR">SAR — ﷼ Saudi Riyal</option>
+              <option value="NZD">NZD — NZ$ New Zealand Dollar</option>
+            </select>
 
             {/* PRICE */}
             <input
@@ -214,7 +280,7 @@ export default function GymPlanPage() {
             </select>
 
             {/* VIDEO KE ALAWA */}
-            {form.category.toLowerCase() !== "video" && (
+            {!isVideo && (
               <>
                 <input
                   placeholder="Features comma separated"
@@ -247,6 +313,11 @@ export default function GymPlanPage() {
           <div className="section-header">
             <h2>
               {form.category.charAt(0).toUpperCase() + form.category.slice(1)} Plans
+              {isVideo && (
+                <span style={{ fontSize: "14px", fontWeight: 400, marginLeft: "8px", color: "#888" }}>
+                  ({form.currencyCode})
+                </span>
+              )}
             </h2>
             <span className="count-badge">{plans.length}</span>
           </div>
@@ -287,6 +358,8 @@ function PlanCard({
   const displayPrice = safePrice(plan.price);
   const displayDuration = safeString(plan.duration);
   const displayCategory = safeString(plan.category);
+  const displayCurrencyCode = safeString(plan.currencyCode) || "INR";
+  const currencySymbol = getCurrencySymbol(displayCurrencyCode);
   const isVideo = displayCategory.toLowerCase() === "video";
 
   return (
@@ -294,29 +367,9 @@ function PlanCard({
       <div className="banner-card-body" style={{ padding: "20px" }}>
 
         {/* ACTIONS */}
-        <div
-          className="banner-actions"
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: "10px",
-            marginBottom: "12px",
-          }}
-        >
-          <button
-            className="banner-icon-btn banner-edit-btn"
-            onClick={() => onEdit(plan)}
-            type="button"
-          >
-            Edit
-          </button>
-          <button
-            className="banner-icon-btn banner-delete-btn"
-            onClick={() => onDelete(plan._id)}
-            type="button"
-          >
-            Delete
-          </button>
+        <div className="banner-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginBottom: "12px" }}>
+          <button className="banner-icon-btn banner-edit-btn" onClick={() => onEdit(plan)} type="button">Edit</button>
+          <button className="banner-icon-btn banner-delete-btn" onClick={() => onDelete(plan._id)} type="button">Delete</button>
         </div>
 
         {/* CATEGORY */}
@@ -327,9 +380,24 @@ function PlanCard({
         {/* TITLE */}
         <h3>{displayName}</h3>
 
+        {/* CURRENCY BADGE */}
+        <span style={{
+          display: "inline-block",
+          marginTop: "6px",
+          padding: "2px 10px",
+          background: "#f0f0f0",
+          borderRadius: "20px",
+          fontSize: "11px",
+          fontWeight: 700,
+          color: "#555",
+          letterSpacing: "0.05em",
+        }}>
+          {displayCurrencyCode}
+        </span>
+
         {/* PRICE */}
         <p style={{ fontWeight: 700, fontSize: "20px", margin: "8px 0" }}>
-          ₹ {displayPrice}
+          {currencySymbol} {displayPrice}
         </p>
 
         {/* DURATION */}
@@ -341,7 +409,6 @@ function PlanCard({
             <p style={{ marginTop: "10px", lineHeight: "1.7", color: "#555" }}>
               {safeString(plan.description)}
             </p>
-
             {Array.isArray(plan.features) && plan.features.length > 0 && (
               <ul style={{ marginTop: "14px", paddingLeft: "20px", lineHeight: "1.8" }}>
                 {plan.features.map((feature, index) => (
