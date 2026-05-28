@@ -12,7 +12,7 @@ type ProgressProps = {
 
 type ProgressStyle = CSSProperties & {
   "--value": string;
-};
+};   
 
 export function Stat({ label, value }: StatProps) {
   return <div className="card stat"><span>{label}</span><strong>{value}</strong></div>;
