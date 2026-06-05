@@ -34,6 +34,31 @@ const authCookieKey =
 const BASE_URL =
   "https://dinesh-sagel-backend.onrender.com";
 
+function normalizeToken(
+  token: string | null
+) {
+  if (
+    !token ||
+    token === "null" ||
+    token === "undefined"
+  ) {
+    return null;
+  }
+
+  const trimmed = token.trim();
+  return trimmed ? trimmed : null;
+}
+
+// Customize the spoken notification announcement here.
+const NOTIFICATION_VOICE_MESSAGE =
+  "दिनेश सहगल, आपका नोटिफिकेशन आया है।";
+
+const NOTIFICATION_VOICE_LANGUAGE =
+  "hi-IN";
+
+const NOTIFICATION_VOICE_RATE =
+  0.92;
+
 // ================= TYPES =================
 
 type IconName =
@@ -103,7 +128,7 @@ const routes: Route[] = [
 
 const titles: Record<
   string,
-  [string, string]
+  [string, string]   
 > = {
 
 
@@ -189,10 +214,59 @@ export default function AdminShell({
 
   useEffect(() => {
 
-    const token =
-      localStorage.getItem(
-        tokenKey
+    const token = normalizeToken(
+      localStorage.getItem(tokenKey)
+    );
+
+    if (!token) {
+      console.log(
+        "No auth token found, skipping socket connection"
       );
+      return;
+    }
+
+    function announceNotification() {
+
+      if (
+        !("speechSynthesis" in window)
+      ) {
+        return;
+      }
+
+      const announcement =
+        new SpeechSynthesisUtterance(
+          NOTIFICATION_VOICE_MESSAGE
+        );
+
+      const selectedVoice =
+        window.speechSynthesis
+          .getVoices()
+          .find(
+            (voice) =>
+              voice.lang ===
+              NOTIFICATION_VOICE_LANGUAGE
+          );
+
+      announcement.lang =
+        NOTIFICATION_VOICE_LANGUAGE;
+
+      announcement.rate =
+        NOTIFICATION_VOICE_RATE;
+
+      announcement.volume =
+        1;
+
+      if (selectedVoice) {
+        announcement.voice =
+          selectedVoice;
+      }
+
+      window.speechSynthesis.cancel();
+
+      window.speechSynthesis.speak(
+        announcement
+      );
+    }
 
     console.log(
       "TOKEN =>",
@@ -246,6 +320,8 @@ export default function AdminShell({
         const enquiry =
           data.enquiry;
 
+        announceNotification();
+
         setNotifications(
           (prev) => [
 
@@ -296,6 +372,12 @@ export default function AdminShell({
     return () => {
 
       socket.disconnect();
+
+      if (
+        "speechSynthesis" in window
+      ) {
+        window.speechSynthesis.cancel();
+      }
     };
 
   }, []);
@@ -342,10 +424,13 @@ export default function AdminShell({
 
     try {
 
-      const token =
-        localStorage.getItem(
-          tokenKey
-        );
+      const token = normalizeToken(
+        localStorage.getItem(tokenKey)
+      );
+
+      if (!token) {
+        return;
+      }
 
       const response =
         await fetch(

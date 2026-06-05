@@ -43,9 +43,18 @@ export async function apiRequest<
         )
       : null;
 
+  const normalizeToken = (
+    value: string | null
+  ) =>
+    value &&
+    value !== "null" &&
+    value !== "undefined"
+      ? value.trim()
+      : null;
+
   const token =
-    options.token ||
-    savedToken;
+    normalizeToken(options.token ?? null) ||
+    normalizeToken(savedToken);
 
   // ================= CHECK FORMDATA =================
 

@@ -118,15 +118,30 @@ export default function LoginPage() {
 
       // ================= TOKEN =================
 
-      const token =
+      const rawToken =
         data?.token ||
         data?.data?.token ||
+        data?.accessToken ||
+        data?.data?.accessToken ||
         "";
+
+      const token =
+        rawToken &&
+        rawToken !== "null" &&
+        rawToken !== "undefined"
+          ? String(rawToken).trim()
+          : "";
 
       console.log(
         "TOKEN",
         token
       );
+
+      if (!token) {
+        throw new Error(
+          "Login failed: invalid token"
+        );
+      }
 
       // ================= SAVE LOGIN =================
 
