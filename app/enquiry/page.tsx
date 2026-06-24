@@ -8,7 +8,8 @@ type Enquiry = {
   _id: string;
   name?: string;
   email?: string;
-  phone?: string;
+  phone?: string;          // purana field (compatibility)
+  mobileNumber?: string;   // naya field
   message?: string;
   isRead?: boolean;
   createdAt?: string;
@@ -162,6 +163,11 @@ export default function EnquiryPage() {
     }
   }
 
+  // Helper to get the best available phone number
+  function getPhoneNumber(item: Enquiry): string | undefined {
+    return item.mobileNumber || item.phone || undefined;
+  }
+
   return (
     <AdminShell>
       <section
@@ -302,14 +308,15 @@ export default function EnquiryPage() {
                   </p>
                 )}
 
-                {item.phone && (
+                {/* ✅ Mobile Number - priority to mobileNumber, fallback to phone */}
+                {getPhoneNumber(item) && (
                   <p
                     style={{
                       marginBottom: "8px",
                       color: "#374151",
                     }}
                   >
-                    📞 {item.phone}
+                    📞 {getPhoneNumber(item)}
                   </p>
                 )}
 

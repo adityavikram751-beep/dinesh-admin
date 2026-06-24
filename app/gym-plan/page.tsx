@@ -9,189 +9,316 @@ const VIDEO_PLANS_URL = "https://dinesh-sagel-backend.onrender.com/api/video-pla
 
 // ================= TYPES =================
 
+type PriceEntry = {
+  currencyCode: string;
+  price: number;
+  symbol: string;
+  _id?: string;
+};
+
 type GymPlan = {
   _id: string;
-  title: string;
   name: string;
   description: string;
-  currencyCode?: string;
-  price: number | string;
+  allprice: PriceEntry[];
   duration: string;
   category: string;
   features: string[];
 };
 
-// ================= CURRENCY SYMBOL MAP =================
-
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  INR: "₹",
-  USD: "$",
-  GBP: "£",
-  EUR: "€",
-  AED: "د.إ",
-  AUD: "A$",
-  CAD: "C$",
-  SGD: "S$",
-  SAR: "﷼",
-  NZD: "NZ$",
+type VideoPlan = {
+  _id: string;
+  title: string;
+  allprice: PriceEntry[];      // ✅ ab multiple prices allow hain
+  duration: string;
+  // description, features, category nahi hai
 };
 
-function getCurrencySymbol(code: string): string {
-  if (!code) return "₹";
-  return CURRENCY_SYMBOLS[code.toUpperCase()] || code.toUpperCase();
+// ================= CURRENCY OPTIONS =================
+
+const CURRENCY_OPTIONS = [
+  { code: "INR", symbol: "₹", label: "INR — ₹ Indian Rupee" },
+  { code: "USD", symbol: "$", label: "USD — $ US Dollar" },
+  { code: "GBP", symbol: "£", label: "GBP — £ British Pound" },
+  { code: "EUR", symbol: "€", label: "EUR — € Euro" },
+  { code: "AED", symbol: "د.إ", label: "AED — د.إ UAE Dirham" },
+  { code: "AUD", symbol: "A$", label: "AUD — A$ Australian Dollar" },
+  { code: "CAD", symbol: "C$", label: "CAD — C$ Canadian Dollar" },
+  { code: "SGD", symbol: "S$", label: "SGD — S$ Singapore Dollar" },
+  { code: "SAR", symbol: "﷼", label: "SAR — ﷼ Saudi Riyal" },
+  { code: "NZD", symbol: "NZ$", label: "NZD — NZ$ New Zealand Dollar" },
+];
+
+function getSymbol(code: string) {
+  return CURRENCY_OPTIONS.find((c) => c.code === code)?.symbol || code;
 }
 
 // ================= EMPTY FORM =================
 
+type PriceRow = { currencyCode: string; price: string };
+
 const emptyForm = {
-  title: "",
+  name: "",
   description: "",
-  currencyCode: "INR",
-  price: "",
   duration: "",
-  category: "video",
+  category: "transformation",
   featuresInput: "",
+  prices: [{ currencyCode: "INR", price: "" }] as PriceRow[],
 };
 
-// ================= EXTRACT DATA =================
+// ✅ Video form – ab sirf title, duration, prices
+const emptyVideoForm = {
+  title: "",
+  duration: "",
+  prices: [{ currencyCode: "INR", price: "" }] as PriceRow[],
+};
 
-function extractPlans(data: any): GymPlan[] {
-  console.log("API RESPONSE =>", data);
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.videoplans)) return data.videoplans;
-  if (Array.isArray(data?.videoPlans)) return data.videoPlans;
-  if (Array.isArray(data?.plans)) return data.plans;
-  if (Array.isArray(data?.data)) return data.data;
-  if (Array.isArray(data?.data?.plans)) return data.data.plans;
+// ================= EXTRACT =================
+
+function extractPlans(data: unknown): GymPlan[] {
+  if (Array.isArray(data)) return data as GymPlan[];
+  if (data && typeof data === "object") {
+    const d = data as Record<string, unknown>;
+    for (const key of ["plans", "data", "results", "items"]) {
+      if (Array.isArray(d[key])) return d[key] as GymPlan[];
+    }
+  }
   return [];
 }
 
-// ================= SAFE VALUE HELPERS =================
-
-function safeString(val: any): string {
-  if (val === null || val === undefined || val === "undefined") return "";
-  return String(val);
+function extractVideoPlans(data: unknown): VideoPlan[] {
+  if (Array.isArray(data)) return data as VideoPlan[];
+  if (data && typeof data === "object") {
+    const d = data as Record<string, unknown>;
+    for (const key of ["videoplans", "videoPlans", "plans", "data"]) {
+      if (Array.isArray(d[key])) return d[key] as VideoPlan[];
+    }
+  }
+  return [];
 }
 
-function safePrice(val: any): string {
-  const num = Number(val);
-  if (isNaN(num)) return "0";
-  return String(num);
+function safeStr(val: unknown): string {
+  if (val === null || val === undefined) return "";
+  return String(val);
 }
 
 // ================= PAGE =================
 
 export default function GymPlanPage() {
+  const [category, setCategory] = useState("transformation");
   const [plans, setPlans] = useState<GymPlan[]>([]);
+  const [videoPlans, setVideoPlans] = useState<VideoPlan[]>([]);
+
+  // Non-video form
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState("");
+
+  // Video form – sirf title, duration, prices
+  const [videoForm, setVideoForm] = useState(emptyVideoForm);
+  const [editingVideoId, setEditingVideoId] = useState("");
+
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState("");
 
-  useEffect(() => { loadPlans(); }, []);
+  const isVideo = category === "video";
 
-  // Category ya currencyCode change hone pe reload
-  useEffect(() => { loadPlans(); }, [form.category, form.currencyCode]);
+  useEffect(() => {
+    loadData(category);
+  }, []);
 
-  // ================= GET DATA =================
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(""), 2500);
+  }
 
-  async function loadPlans() {
+  // ================= LOAD =================
+
+  async function loadData(currentCategory?: string) {
+    const cat = currentCategory ?? category;
     try {
-      const isVideo = form.category.toLowerCase() === "video";
-
-      let data: any;
-
-      if (isVideo) {
-        // Video — currencyCode se filter
-        const url = `${VIDEO_PLANS_URL}?currencyCode=${form.currencyCode || "INR"}`;
-        const res = await fetch(url);
-        data = await res.json();
+      if (cat === "video") {
+        const res = await fetch(VIDEO_PLANS_URL);
+        const data = await res.json();
+        setVideoPlans(extractVideoPlans(data));
       } else {
-        data = await apiRequest<any>(`/api/plans/plans?category=${form.category}`);
+        const data = await apiRequest<unknown>(`/api/plans/plans?category=${cat}`);
+        setPlans(extractPlans(data));
       }
-
-      console.log("LOADED DATA =>", data);
-      setPlans(extractPlans(data));
-    } catch (error) {
-      console.log(error);
+    } catch (err) {
+      console.error(err);
     }
   }
 
-  // ================= SUBMIT =================
+  // ================= PRICE ROW HELPERS (non-video) =================
+
+  function addPriceRow() {
+    setForm((prev) => ({
+      ...prev,
+      prices: [...prev.prices, { currencyCode: "USD", price: "" }],
+    }));
+  }
+
+  function removePriceRow(index: number) {
+    setForm((prev) => ({
+      ...prev,
+      prices: prev.prices.filter((_, i) => i !== index),
+    }));
+  }
+
+  function updatePriceRow(index: number, field: keyof PriceRow, value: string) {
+    setForm((prev) => {
+      const updated = [...prev.prices];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, prices: updated };
+    });
+  }
+
+  // ================= VIDEO PRICE ROW HELPERS =================
+
+  function addVideoPriceRow() {
+    setVideoForm((prev) => ({
+      ...prev,
+      prices: [...prev.prices, { currencyCode: "USD", price: "" }],
+    }));
+  }
+
+  function removeVideoPriceRow(index: number) {
+    setVideoForm((prev) => ({
+      ...prev,
+      prices: prev.prices.filter((_, i) => i !== index),
+    }));
+  }
+
+  function updateVideoPriceRow(index: number, field: keyof PriceRow, value: string) {
+    setVideoForm((prev) => {
+      const updated = [...prev.prices];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, prices: updated };
+    });
+  }
+
+  // ================= SUBMIT NON-VIDEO =================
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
+    setLoading(true);
     try {
-      setLoading(true);
+      const allprice = form.prices
+        .filter((p) => p.price !== "")
+        .map((p) => ({
+          currencyCode: p.currencyCode,
+          price: Number(p.price),
+          symbol: getSymbol(p.currencyCode),
+        }));
 
-      const isVideo = form.category.toLowerCase() === "video";
+      const featuresArray = form.featuresInput
+        .split(/[,\n]+/)
+        .map((f) => f.trim())
+        .filter(Boolean);
 
-      const payload = isVideo
-        ? {
-            title: form.title,
-            currencyCode: form.currencyCode || "INR",
-            price: Number(form.price),
-            duration: form.duration,
-          }
-        : {
-            name: form.title,
-            description: form.description,
-            currencyCode: form.currencyCode || "INR",
-            price: Number(form.price),
-            duration: form.duration,
-            category: form.category,
-            features: form.featuresInput
-              .split(",")
-              .map((f) => f.trim())
-              .filter(Boolean),
-          };
+      const payload = {
+        name: form.name,
+        description: form.description,
+        allprice,
+        duration: form.duration,
+        category: form.category,
+        features: featuresArray,
+      };
 
-      console.log("PAYLOAD =>", payload);
-
-      if (isVideo) {
-        if (!editingId) {
-          await fetch(VIDEO_PLANS_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-        } else {
-          await fetch(`${VIDEO_PLANS_URL}/${editingId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-        }
+      if (editingId) {
+        await apiRequest(`/api/plans/plans/${editingId}`, { method: "PUT", body: payload });
+        showToast("Plan updated ✅");
       } else {
-        if (!editingId) {
-          await apiRequest("/api/plans/plans", { method: "POST", body: payload });
-        } else {
-          await apiRequest(`/api/plans/plans/${editingId}`, { method: "PUT", body: payload });
-        }
+        await apiRequest("/api/plans/plans", { method: "POST", body: payload });
+        showToast("Plan created ✅");
       }
 
-      setForm({ ...emptyForm, category: form.category, currencyCode: form.currencyCode });
+      setForm({ ...emptyForm, category });
       setEditingId("");
-      loadPlans();
-    } catch (error) {
-      console.log(error);
+      loadData(category);
+    } catch (err) {
+      showToast("Something went wrong ❌");
+      console.error(err);
     } finally {
       setLoading(false);
     }
   }
 
-  // ================= EDIT =================
+  // ================= SUBMIT VIDEO – sirf title, allprice, duration =================
+
+  async function handleVideoSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoading(true);
+    try {
+      const allprice = videoForm.prices
+        .filter((p) => p.price !== "")
+        .map((p) => ({
+          currencyCode: p.currencyCode,
+          price: Number(p.price),
+          symbol: getSymbol(p.currencyCode),
+        }));
+
+      const payload = {
+        title: videoForm.title,
+        allprice,
+        duration: videoForm.duration,
+        // category optional – backend pe video plan alag collection mein hai
+      };
+
+      if (editingVideoId) {
+        await fetch(`${VIDEO_PLANS_URL}/${editingVideoId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        showToast("Video plan updated ✅");
+      } else {
+        await fetch(VIDEO_PLANS_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        showToast("Video plan created ✅");
+      }
+
+      setVideoForm(emptyVideoForm);
+      setEditingVideoId("");
+      loadData("video");
+    } catch (err) {
+      showToast("Something went wrong ❌");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ================= EDIT NON-VIDEO =================
 
   function handleEdit(plan: GymPlan) {
     setEditingId(plan._id);
     setForm({
-      title: safeString(plan.title || plan.name),
-      description: safeString(plan.description),
-      price: safePrice(plan.price),
-      duration: safeString(plan.duration),
-      category: safeString(plan.category) || "video",
-      featuresInput: Array.isArray(plan.features) ? plan.features.join(", ") : "",
-      currencyCode: safeString(plan.currencyCode) || "INR",
+      name: safeStr(plan.name),
+      description: safeStr(plan.description),
+      duration: safeStr(plan.duration),
+      category: safeStr(plan.category) || category,
+      featuresInput: Array.isArray(plan.features) ? plan.features.join("\n") : "",
+      prices: Array.isArray(plan.allprice) && plan.allprice.length > 0
+        ? plan.allprice.map((p) => ({ currencyCode: p.currencyCode, price: String(p.price) }))
+        : [{ currencyCode: "INR", price: "" }],
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // ================= EDIT VIDEO – sirf title, duration, prices =================
+
+  function handleVideoEdit(plan: VideoPlan) {
+    setEditingVideoId(plan._id);
+    setVideoForm({
+      title: safeStr(plan.title),
+      duration: safeStr(plan.duration),
+      prices: Array.isArray(plan.allprice) && plan.allprice.length > 0
+        ? plan.allprice.map((p) => ({ currencyCode: p.currencyCode, price: String(p.price) }))
+        : [{ currencyCode: "INR", price: "" }],
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -200,141 +327,341 @@ export default function GymPlanPage() {
 
   async function handleDelete(id: string) {
     try {
-      const isVideo = form.category.toLowerCase() === "video";
-      if (isVideo) {
-        await fetch(`${VIDEO_PLANS_URL}/${id}`, { method: "DELETE" });
-      } else {
-        await apiRequest(`/api/plans/plans/${id}`, { method: "DELETE" });
-      }
-      loadPlans();
-    } catch (error) {
-      console.log(error);
+      await apiRequest(`/api/plans/plans/${id}`, { method: "DELETE" });
+      showToast("Plan deleted");
+      loadData(category);
+    } catch (err) {
+      console.error(err);
     }
   }
 
-  const isVideo = form.category.toLowerCase() === "video";
+  async function handleVideoDelete(id: string) {
+    try {
+      await fetch(`${VIDEO_PLANS_URL}/${id}`, { method: "DELETE" });
+      showToast("Video plan deleted");
+      loadData("video");
+    } catch (err) {
+      console.error(err);
+    }
+  }
 
   // ================= UI =================
 
   return (
     <AdminShell>
+      {/* Toast */}
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            top: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            backgroundColor: toast.includes("❌") ? "#ef4444" : "#22c55e",
+            color: "#fff",
+            padding: "12px 28px",
+            borderRadius: 12,
+            fontWeight: 700,
+            zIndex: 9999,
+            boxShadow: "0 8px 30px rgba(0,0,0,0.15)",
+          }}
+        >
+          {toast}
+        </div>
+      )}
+
       <section className="banner-page">
 
-        {/* ================= FORM ================= */}
-
-        <form className="banner-form" onSubmit={handleSubmit}>
-          <h2>{editingId ? "Update Plan" : "Create Plan"}</h2>
-
-          <div className="banner-form-grid">
-
-            {/* TITLE */}
-            <input
-              required
-              placeholder="Plan Title"
-              value={form.title}
-              onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-            />
-
-            {/* CURRENCY CODE DROPDOWN */}
-            <select
-              value={form.currencyCode}
-              onChange={(e) => setForm((prev) => ({ ...prev, currencyCode: e.target.value }))}
+        {/* ================= CATEGORY TABS ================= */}
+        <div style={{ display: "flex", gap: 10, marginBottom: 28, flexWrap: "wrap" }}>
+          {["transformation", "diet", "video"].map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => {
+                setCategory(cat);
+                setForm({ ...emptyForm, category: cat });
+                setEditingId("");
+                setVideoForm(emptyVideoForm);
+                setEditingVideoId("");
+                loadData(cat);
+              }}
+              style={{
+                padding: "8px 22px",
+                borderRadius: 20,
+                border: "2px solid",
+                borderColor: category === cat ? "#111" : "#ddd",
+                background: category === cat ? "#111" : "#fff",
+                color: category === cat ? "#fff" : "#333",
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: "pointer",
+                textTransform: "capitalize",
+              }}
             >
-              <option value="INR">INR — ₹ Indian Rupee</option>
-              <option value="USD">USD — $ US Dollar</option>
-              <option value="GBP">GBP — £ British Pound</option>
-              <option value="EUR">EUR — € Euro</option>
-              <option value="AED">AED — د.إ UAE Dirham</option>
-              <option value="AUD">AUD — A$ Australian Dollar</option>
-              <option value="CAD">CAD — C$ Canadian Dollar</option>
-              <option value="SGD">SGD — S$ Singapore Dollar</option>
-              <option value="SAR">SAR — ﷼ Saudi Riyal</option>
-              <option value="NZD">NZD — NZ$ New Zealand Dollar</option>
-            </select>
+              {cat}
+            </button>
+          ))}
+        </div>
 
-            {/* PRICE */}
-            <input
-              required
-              type="number"
-              placeholder="Price"
-              value={form.price}
-              onChange={(e) => setForm((prev) => ({ ...prev, price: e.target.value }))}
-            />
+        {/* ================= VIDEO FORM – sirf title, duration, prices ================= */}
+        {isVideo && (
+          <form className="banner-form" onSubmit={handleVideoSubmit}>
+            <h2>{editingVideoId ? "Update Video Plan" : "Create Video Plan"}</h2>
+            <div className="banner-form-grid">
+              <input
+                required
+                placeholder="Plan Title"
+                value={videoForm.title}
+                onChange={(e) => setVideoForm((p) => ({ ...p, title: e.target.value }))}
+              />
+              <input
+                required
+                placeholder="Duration (e.g. 4 weeks)"
+                value={videoForm.duration}
+                onChange={(e) => setVideoForm((p) => ({ ...p, duration: e.target.value }))}
+              />
+            </div>
 
-            {/* DURATION */}
-            <input
-              required
-              placeholder="Duration"
-              value={form.duration}
-              onChange={(e) => setForm((prev) => ({ ...prev, duration: e.target.value }))}
-            />
+            {/* PRICES */}
+            <div style={{ marginTop: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                <strong>Prices</strong>
+                <button
+                  type="button"
+                  onClick={addVideoPriceRow}
+                  style={{
+                    padding: "4px 14px",
+                    borderRadius: 8,
+                    background: "#111",
+                    color: "#fff",
+                    border: "none",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    fontSize: 13,
+                  }}
+                >
+                  + Add Currency
+                </button>
+              </div>
 
-            {/* CATEGORY */}
-            <select
-              value={form.category}
-              onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value }))}
-            >
-              <option value="video">Video</option>
-              <option value="diet">Diet</option>
-              <option value="transformation">Transformation</option>
-            </select>
-
-            {/* VIDEO KE ALAWA */}
-            {!isVideo && (
-              <>
-                <input
-                  placeholder="Features comma separated"
-                  value={form.featuresInput}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, featuresInput: e.target.value }))
-                  }
-                />
-                <textarea
-                  rows={4}
-                  required
-                  placeholder="Description"
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, description: e.target.value }))
-                  }
-                />
-              </>
-            )}
-          </div>
-
-          <button className="submit-btn" disabled={loading} type="submit">
-            {loading ? "Please wait..." : editingId ? "Update Plan" : "Create Plan"}
-          </button>
-        </form>
-
-        {/* ================= LIST ================= */}
-
-        <div className="banner-section">
-          <div className="section-header">
-            <h2>
-              {form.category.charAt(0).toUpperCase() + form.category.slice(1)} Plans
-              {isVideo && (
-                <span style={{ fontSize: "14px", fontWeight: 400, marginLeft: "8px", color: "#888" }}>
-                  ({form.currencyCode})
-                </span>
-              )}
-            </h2>
-            <span className="count-badge">{plans.length}</span>
-          </div>
-
-          {plans.length === 0 ? (
-            <div className="empty-state">No plans found</div>
-          ) : (
-            <div className="banner-grid">
-              {plans.map((plan) => (
-                <PlanCard
-                  key={plan._id}
-                  plan={plan}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                />
+              {videoForm.prices.map((row, index) => (
+                <div key={index} style={{ display: "flex", gap: 10, marginBottom: 10, alignItems: "center", flexWrap: "wrap" }}>
+                  <select
+                    value={row.currencyCode}
+                    onChange={(e) => updateVideoPriceRow(index, "currencyCode", e.target.value)}
+                    style={{ flex: 1, minWidth: 160, padding: "10px 12px", borderRadius: 8, border: "1px solid #ddd" }}
+                  >
+                    {CURRENCY_OPTIONS.map((c) => (
+                      <option key={c.code} value={c.code}>{c.label}</option>
+                    ))}
+                  </select>
+                  <input
+                    required
+                    type="number"
+                    placeholder="Price"
+                    value={row.price}
+                    onChange={(e) => updateVideoPriceRow(index, "price", e.target.value)}
+                    style={{ flex: 1, minWidth: 120, padding: "10px 12px", borderRadius: 8, border: "1px solid #ddd" }}
+                  />
+                  {videoForm.prices.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeVideoPriceRow(index)}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: 8,
+                        background: "#ef4444",
+                        color: "#fff",
+                        border: "none",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
+
+            <button className="submit-btn" disabled={loading} type="submit">
+              {loading ? "Please wait..." : editingVideoId ? "Update Plan" : "Create Plan"}
+            </button>
+          </form>
+        )}
+
+        {/* ================= NON-VIDEO FORM (transformation / diet) ================= */}
+        {!isVideo && (
+          <form className="banner-form" onSubmit={handleSubmit}>
+            <h2>{editingId ? "Update Plan" : "Create Plan"}</h2>
+            <div className="banner-form-grid">
+
+              <input
+                required
+                placeholder="Plan Name"
+                value={form.name}
+                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+              />
+
+              <input
+                required
+                placeholder="Duration (e.g. 3 months)"
+                value={form.duration}
+                onChange={(e) => setForm((p) => ({ ...p, duration: e.target.value }))}
+              />
+
+              <select
+                value={form.category}
+                onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
+              >
+                <option value="transformation">Transformation</option>
+                <option value="diet">Diet</option>
+              </select>
+
+              <textarea
+                rows={5}
+                placeholder="Features (comma separated or one per line)&#10;e.g. Customized Workout Plan, Basic Diet Plan, WhatsApp Support"
+                value={form.featuresInput}
+                onChange={(e) => setForm((p) => ({ ...p, featuresInput: e.target.value }))}
+                style={{
+                  gridColumn: "1 / -1",
+                  padding: "12px 14px",
+                  borderRadius: 10,
+                  border: "1px solid #ddd",
+                  fontSize: 14,
+                  fontFamily: "inherit",
+                  resize: "vertical",
+                  minHeight: "100px",
+                  backgroundColor: "#fafafa",
+                }}
+              />
+
+              <textarea
+                rows={3}
+                required
+                placeholder="Description"
+                value={form.description}
+                onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                style={{
+                  gridColumn: "1 / -1",
+                  padding: "12px 14px",
+                  borderRadius: 10,
+                  border: "1px solid #ddd",
+                  fontSize: 14,
+                  fontFamily: "inherit",
+                  resize: "vertical",
+                  minHeight: "80px",
+                  backgroundColor: "#fafafa",
+                }}
+              />
+            </div>
+
+            {/* PRICES */}
+            <div style={{ marginTop: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                <strong>Prices</strong>
+                <button
+                  type="button"
+                  onClick={addPriceRow}
+                  style={{
+                    padding: "4px 14px",
+                    borderRadius: 8,
+                    background: "#111",
+                    color: "#fff",
+                    border: "none",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    fontSize: 13,
+                  }}
+                >
+                  + Add Currency
+                </button>
+              </div>
+
+              {form.prices.map((row, index) => (
+                <div key={index} style={{ display: "flex", gap: 10, marginBottom: 10, alignItems: "center", flexWrap: "wrap" }}>
+                  <select
+                    value={row.currencyCode}
+                    onChange={(e) => updatePriceRow(index, "currencyCode", e.target.value)}
+                    style={{ flex: 1, minWidth: 160, padding: "10px 12px", borderRadius: 8, border: "1px solid #ddd" }}
+                  >
+                    {CURRENCY_OPTIONS.map((c) => (
+                      <option key={c.code} value={c.code}>{c.label}</option>
+                    ))}
+                  </select>
+                  <input
+                    required
+                    type="number"
+                    placeholder="Price"
+                    value={row.price}
+                    onChange={(e) => updatePriceRow(index, "price", e.target.value)}
+                    style={{ flex: 1, minWidth: 120, padding: "10px 12px", borderRadius: 8, border: "1px solid #ddd" }}
+                  />
+                  {form.prices.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removePriceRow(index)}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: 8,
+                        background: "#ef4444",
+                        color: "#fff",
+                        border: "none",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <button className="submit-btn" disabled={loading} type="submit">
+              {loading ? "Please wait..." : editingId ? "Update Plan" : "Create Plan"}
+            </button>
+          </form>
+        )}
+
+        {/* ================= LIST ================= */}
+        <div className="banner-section">
+          <div className="section-header">
+            <h2 style={{ textTransform: "capitalize" }}>{category} Plans</h2>
+            <span className="count-badge">{isVideo ? videoPlans.length : plans.length}</span>
+          </div>
+
+          {isVideo ? (
+            videoPlans.length === 0 ? (
+              <div className="empty-state">No video plans found</div>
+            ) : (
+              <div className="banner-grid">
+                {videoPlans.map((plan) => (
+                  <VideoPlanCard
+                    key={plan._id}
+                    plan={plan}
+                    onEdit={handleVideoEdit}
+                    onDelete={handleVideoDelete}
+                  />
+                ))}
+              </div>
+            )
+          ) : (
+            plans.length === 0 ? (
+              <div className="empty-state">No plans found</div>
+            ) : (
+              <div className="banner-grid">
+                {plans.map((plan) => (
+                  <PlanCard
+                    key={plan._id}
+                    plan={plan}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                  />
+                ))}
+              </div>
+            )
           )}
         </div>
 
@@ -343,7 +670,7 @@ export default function GymPlanPage() {
   );
 }
 
-// ================= CARD =================
+// ================= PLAN CARD (non-video) =================
 
 function PlanCard({
   plan,
@@ -354,71 +681,108 @@ function PlanCard({
   onEdit: (plan: GymPlan) => void;
   onDelete: (id: string) => void;
 }) {
-  const displayName = safeString(plan.title || plan.name);
-  const displayPrice = safePrice(plan.price);
-  const displayDuration = safeString(plan.duration);
-  const displayCategory = safeString(plan.category);
-  const displayCurrencyCode = safeString(plan.currencyCode) || "INR";
-  const currencySymbol = getCurrencySymbol(displayCurrencyCode);
-  const isVideo = displayCategory.toLowerCase() === "video";
-
   return (
     <div className="banner-card">
-      <div className="banner-card-body" style={{ padding: "20px" }}>
-
-        {/* ACTIONS */}
-        <div className="banner-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginBottom: "12px" }}>
+      <div className="banner-card-body" style={{ padding: 20 }}>
+        <div className="banner-actions" style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 12 }}>
           <button className="banner-icon-btn banner-edit-btn" onClick={() => onEdit(plan)} type="button">Edit</button>
           <button className="banner-icon-btn banner-delete-btn" onClick={() => onDelete(plan._id)} type="button">Delete</button>
         </div>
 
-        {/* CATEGORY */}
-        <div className="banner-type">
-          {displayCategory.charAt(0).toUpperCase() + displayCategory.slice(1)}
-        </div>
+        <div className="banner-type" style={{ textTransform: "capitalize" }}>{plan.category}</div>
+        <h3 style={{ margin: "8px 0 4px" }}>{plan.name}</h3>
+        <p className="banner-duration">⏱ {plan.duration}</p>
 
-        {/* TITLE */}
-        <h3>{displayName}</h3>
-
-        {/* CURRENCY BADGE */}
-        <span style={{
-          display: "inline-block",
-          marginTop: "6px",
-          padding: "2px 10px",
-          background: "#f0f0f0",
-          borderRadius: "20px",
-          fontSize: "11px",
-          fontWeight: 700,
-          color: "#555",
-          letterSpacing: "0.05em",
-        }}>
-          {displayCurrencyCode}
-        </span>
-
-        {/* PRICE */}
-        <p style={{ fontWeight: 700, fontSize: "20px", margin: "8px 0" }}>
-          {currencySymbol} {displayPrice}
-        </p>
-
-        {/* DURATION */}
-        <p className="banner-duration">⏱ {displayDuration}</p>
-
-        {/* VIDEO KE ALAWA */}
-        {!isVideo && (
-          <>
-            <p style={{ marginTop: "10px", lineHeight: "1.7", color: "#555" }}>
-              {safeString(plan.description)}
-            </p>
-            {Array.isArray(plan.features) && plan.features.length > 0 && (
-              <ul style={{ marginTop: "14px", paddingLeft: "20px", lineHeight: "1.8" }}>
-                {plan.features.map((feature, index) => (
-                  <li key={index}>✓ {safeString(feature)}</li>
-                ))}
-              </ul>
-            )}
-          </>
+        {Array.isArray(plan.allprice) && plan.allprice.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+            {plan.allprice.map((p, i) => (
+              <span
+                key={i}
+                style={{
+                  background: "#f4f4f4",
+                  border: "1px solid #e0e0e0",
+                  borderRadius: 10,
+                  padding: "4px 12px",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: "#111",
+                }}
+              >
+                {p.symbol || p.currencyCode} {p.price}
+              </span>
+            ))}
+          </div>
         )}
 
+        {plan.description && (
+          <p style={{ marginTop: 10, lineHeight: 1.7, color: "#555", fontSize: 14 }}>{plan.description}</p>
+        )}
+
+        {Array.isArray(plan.features) && plan.features.length > 0 && (
+          <ul style={{
+            marginTop: 12,
+            paddingLeft: 0,
+            lineHeight: 1.9,
+            fontSize: 14,
+            color: "#444",
+            listStyleType: "none",
+          }}>
+            {plan.features.map((f, i) => (
+              <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                <span style={{ color: "#22c55e", fontWeight: 700 }}>🟢</span>
+                <span>{f}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ================= VIDEO PLAN CARD – sirf title, duration, prices =================
+
+function VideoPlanCard({
+  plan,
+  onEdit,
+  onDelete,
+}: {
+  plan: VideoPlan;
+  onEdit: (plan: VideoPlan) => void;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <div className="banner-card">
+      <div className="banner-card-body" style={{ padding: 20 }}>
+        <div className="banner-actions" style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 12 }}>
+          <button className="banner-icon-btn banner-edit-btn" onClick={() => onEdit(plan)} type="button">Edit</button>
+          <button className="banner-icon-btn banner-delete-btn" onClick={() => onDelete(plan._id)} type="button">Delete</button>
+        </div>
+
+        <div className="banner-type">Video</div>
+        <h3 style={{ margin: "8px 0 4px" }}>{plan.title}</h3>
+        <p className="banner-duration">⏱ {plan.duration}</p>
+
+        {Array.isArray(plan.allprice) && plan.allprice.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+            {plan.allprice.map((p, i) => (
+              <span
+                key={i}
+                style={{
+                  background: "#f4f4f4",
+                  border: "1px solid #e0e0e0",
+                  borderRadius: 10,
+                  padding: "4px 12px",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: "#111",
+                }}
+              >
+                {p.symbol || p.currencyCode} {p.price}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

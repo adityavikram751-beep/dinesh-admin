@@ -16,14 +16,11 @@ type ContactInfo = {
   contactNo?: string | number;
   phoneNumber?: string | number;
   mobile?: string | number;
-  address?: string;
-  Address?: string;
 };
 
 const emptyForm = {
   email: "",
   phone: "",
-  address: ""
 };
 
 function getContactId(contact: ContactInfo | null) {
@@ -35,7 +32,6 @@ function normalizeContact(contact: ContactInfo): ContactInfo {
     ...contact,
     email: contact.email || contact.emailAddress || "",
     phone: String(contact.phone || contact.contact || contact.contactNo || contact.phoneNumber || contact.mobile || ""),
-    address: contact.address || contact.Address || ""
   };
 }
 
@@ -46,8 +42,6 @@ function contactPayload(formData: typeof emptyForm) {
     phone: formData.phone,
     contact: formData.phone,
     contactNo: formData.phone,
-    address: formData.address,
-    Address: formData.address
   };
 }
 
@@ -102,7 +96,6 @@ export default function ContactPage() {
         setForm({
           email: nextContact.email || "",
           phone: String(nextContact.phone || ""),
-          address: nextContact.address || ""
         });
       }
     } catch (error) {
@@ -120,13 +113,13 @@ export default function ContactPage() {
       if (id) {
         await apiRequest(`/api/contactUs/${id}`, {
           method: "PUT",
-          body: contactPayload(form)
+          body: contactPayload(form),
         });
         showToast("Contact updated");
       } else {
         await apiRequest("/api/contactUs", {
           method: "POST",
-          body: contactPayload(form)
+          body: contactPayload(form),
         });
         showToast("Contact added");
       }
@@ -145,7 +138,6 @@ export default function ContactPage() {
       setForm({
         email: contact.email || "",
         phone: String(contact.phone || ""),
-        address: contact.address || ""
       });
     }
 
@@ -162,7 +154,7 @@ export default function ContactPage() {
     setLoading(true);
     try {
       await apiRequest(`/api/contactUs/${id}`, {
-        method: "DELETE"
+        method: "DELETE",
       });
       setContact(null);
       setForm(emptyForm);
@@ -203,16 +195,6 @@ export default function ContactPage() {
                   onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
                 />
               </label>
-              <label className="field wide">
-                <span>Address</span>
-                <textarea
-                  required
-                  name="address"
-                  placeholder="xyz street, city, country"
-                  value={form.address}
-                  onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))}
-                />
-              </label>
             </div>
             <div className="actions">
               <button className="primary-btn" type="submit" disabled={loading}>
@@ -243,10 +225,6 @@ export default function ContactPage() {
               <div>
                 <strong>Phone:</strong>
                 <p>{contact.phone}</p>
-              </div>
-              <div>
-                <strong>Address:</strong>
-                <p>{contact.address}</p>
               </div>
             </div>
           </div>
