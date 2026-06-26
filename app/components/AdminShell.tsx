@@ -122,6 +122,11 @@ const routes: Route[] = [
     "Banner",
     "Image",
   ],
+  [
+    "/payment-details",
+    "Payment Details",
+    "Payment",
+  ]
 ];
 
 // ================= TITLES =================
@@ -160,6 +165,11 @@ const titles: Record<
   "/banner": [
     "Banner",
     "Manage banner images.",
+  ],
+
+  "/payment-details": [
+    "Payment Details",
+    "Manage payment information.",
   ],
 };
 

@@ -26,12 +26,12 @@ type GymPlan = {
   features: string[];
 };
 
+// ✅ VideoPlan type mein 'name' rakho
 type VideoPlan = {
   _id: string;
-  title: string;
-  allprice: PriceEntry[];      // ✅ ab multiple prices allow hain
+  name: string;           // GET se 'name' aata hai
+  allprice: PriceEntry[];
   duration: string;
-  // description, features, category nahi hai
 };
 
 // ================= CURRENCY OPTIONS =================
@@ -66,9 +66,9 @@ const emptyForm = {
   prices: [{ currencyCode: "INR", price: "" }] as PriceRow[],
 };
 
-// ✅ Video form – ab sirf title, duration, prices
+// ✅ Video form – 'name' use karo
 const emptyVideoForm = {
-  title: "",
+  name: "",
   duration: "",
   prices: [{ currencyCode: "INR", price: "" }] as PriceRow[],
 };
@@ -113,7 +113,7 @@ export default function GymPlanPage() {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState("");
 
-  // Video form – sirf title, duration, prices
+  // Video form – 'name'
   const [videoForm, setVideoForm] = useState(emptyVideoForm);
   const [editingVideoId, setEditingVideoId] = useState("");
 
@@ -244,7 +244,7 @@ export default function GymPlanPage() {
     }
   }
 
-  // ================= SUBMIT VIDEO – sirf title, allprice, duration =================
+  // ================= SUBMIT VIDEO – payload mein 'title' bhejo =================
 
   async function handleVideoSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -258,11 +258,11 @@ export default function GymPlanPage() {
           symbol: getSymbol(p.currencyCode),
         }));
 
+      // ✅ Payload mein 'title' – backend ye expect karta hai
       const payload = {
-        title: videoForm.title,
+        title: videoForm.name,        // form mein 'name' hai, backend 'title' maangta hai
         allprice,
         duration: videoForm.duration,
-        // category optional – backend pe video plan alag collection mein hai
       };
 
       if (editingVideoId) {
@@ -309,12 +309,12 @@ export default function GymPlanPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  // ================= EDIT VIDEO – sirf title, duration, prices =================
+  // ================= EDIT VIDEO – form mein 'name' fill karo =================
 
   function handleVideoEdit(plan: VideoPlan) {
     setEditingVideoId(plan._id);
     setVideoForm({
-      title: safeStr(plan.title),
+      name: safeStr(plan.name),      // GET se 'name' aaya, form mein 'name' daalo
       duration: safeStr(plan.duration),
       prices: Array.isArray(plan.allprice) && plan.allprice.length > 0
         ? plan.allprice.map((p) => ({ currencyCode: p.currencyCode, price: String(p.price) }))
@@ -404,16 +404,16 @@ export default function GymPlanPage() {
           ))}
         </div>
 
-        {/* ================= VIDEO FORM – sirf title, duration, prices ================= */}
+        {/* ================= VIDEO FORM – 'name' field ================= */}
         {isVideo && (
           <form className="banner-form" onSubmit={handleVideoSubmit}>
             <h2>{editingVideoId ? "Update Video Plan" : "Create Video Plan"}</h2>
             <div className="banner-form-grid">
               <input
                 required
-                placeholder="Plan Title"
-                value={videoForm.title}
-                onChange={(e) => setVideoForm((p) => ({ ...p, title: e.target.value }))}
+                placeholder="Plan Name"
+                value={videoForm.name}
+                onChange={(e) => setVideoForm((p) => ({ ...p, name: e.target.value }))}
               />
               <input
                 required
@@ -740,7 +740,7 @@ function PlanCard({
   );
 }
 
-// ================= VIDEO PLAN CARD – sirf title, duration, prices =================
+// ================= VIDEO PLAN CARD – 'name' display karega =================
 
 function VideoPlanCard({
   plan,
@@ -760,7 +760,7 @@ function VideoPlanCard({
         </div>
 
         <div className="banner-type">Video</div>
-        <h3 style={{ margin: "8px 0 4px" }}>{plan.title}</h3>
+        <h3 style={{ margin: "8px 0 4px" }}>{plan.name}</h3>   {/* ✅ 'name' display */}
         <p className="banner-duration">⏱ {plan.duration}</p>
 
         {Array.isArray(plan.allprice) && plan.allprice.length > 0 && (
