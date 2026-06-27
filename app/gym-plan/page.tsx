@@ -26,10 +26,9 @@ type GymPlan = {
   features: string[];
 };
 
-// ✅ VideoPlan type mein 'name' rakho
 type VideoPlan = {
   _id: string;
-  name: string;           // GET se 'name' aata hai
+  name: string;
   allprice: PriceEntry[];
   duration: string;
 };
@@ -66,7 +65,6 @@ const emptyForm = {
   prices: [{ currencyCode: "INR", price: "" }] as PriceRow[],
 };
 
-// ✅ Video form – 'name' use karo
 const emptyVideoForm = {
   name: "",
   duration: "",
@@ -109,11 +107,9 @@ export default function GymPlanPage() {
   const [plans, setPlans] = useState<GymPlan[]>([]);
   const [videoPlans, setVideoPlans] = useState<VideoPlan[]>([]);
 
-  // Non-video form
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState("");
 
-  // Video form – 'name'
   const [videoForm, setVideoForm] = useState(emptyVideoForm);
   const [editingVideoId, setEditingVideoId] = useState("");
 
@@ -149,22 +145,14 @@ export default function GymPlanPage() {
     }
   }
 
-  // ================= PRICE ROW HELPERS (non-video) =================
+  // ================= PRICE ROW HELPERS =================
 
   function addPriceRow() {
-    setForm((prev) => ({
-      ...prev,
-      prices: [...prev.prices, { currencyCode: "USD", price: "" }],
-    }));
+    setForm((prev) => ({ ...prev, prices: [...prev.prices, { currencyCode: "USD", price: "" }] }));
   }
-
   function removePriceRow(index: number) {
-    setForm((prev) => ({
-      ...prev,
-      prices: prev.prices.filter((_, i) => i !== index),
-    }));
+    setForm((prev) => ({ ...prev, prices: prev.prices.filter((_, i) => i !== index) }));
   }
-
   function updatePriceRow(index: number, field: keyof PriceRow, value: string) {
     setForm((prev) => {
       const updated = [...prev.prices];
@@ -173,22 +161,12 @@ export default function GymPlanPage() {
     });
   }
 
-  // ================= VIDEO PRICE ROW HELPERS =================
-
   function addVideoPriceRow() {
-    setVideoForm((prev) => ({
-      ...prev,
-      prices: [...prev.prices, { currencyCode: "USD", price: "" }],
-    }));
+    setVideoForm((prev) => ({ ...prev, prices: [...prev.prices, { currencyCode: "USD", price: "" }] }));
   }
-
   function removeVideoPriceRow(index: number) {
-    setVideoForm((prev) => ({
-      ...prev,
-      prices: prev.prices.filter((_, i) => i !== index),
-    }));
+    setVideoForm((prev) => ({ ...prev, prices: prev.prices.filter((_, i) => i !== index) }));
   }
-
   function updateVideoPriceRow(index: number, field: keyof PriceRow, value: string) {
     setVideoForm((prev) => {
       const updated = [...prev.prices];
@@ -205,16 +183,9 @@ export default function GymPlanPage() {
     try {
       const allprice = form.prices
         .filter((p) => p.price !== "")
-        .map((p) => ({
-          currencyCode: p.currencyCode,
-          price: Number(p.price),
-          symbol: getSymbol(p.currencyCode),
-        }));
+        .map((p) => ({ currencyCode: p.currencyCode, price: Number(p.price), symbol: getSymbol(p.currencyCode) }));
 
-      const featuresArray = form.featuresInput
-        .split(/[,\n]+/)
-        .map((f) => f.trim())
-        .filter(Boolean);
+      const featuresArray = form.featuresInput.split(/[,\n]+/).map((f) => f.trim()).filter(Boolean);
 
       const payload = {
         name: form.name,
@@ -244,7 +215,7 @@ export default function GymPlanPage() {
     }
   }
 
-  // ================= SUBMIT VIDEO – payload mein 'title' bhejo =================
+  // ================= SUBMIT VIDEO =================
 
   async function handleVideoSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -252,18 +223,9 @@ export default function GymPlanPage() {
     try {
       const allprice = videoForm.prices
         .filter((p) => p.price !== "")
-        .map((p) => ({
-          currencyCode: p.currencyCode,
-          price: Number(p.price),
-          symbol: getSymbol(p.currencyCode),
-        }));
+        .map((p) => ({ currencyCode: p.currencyCode, price: Number(p.price), symbol: getSymbol(p.currencyCode) }));
 
-      // ✅ Payload mein 'title' – backend ye expect karta hai
-      const payload = {
-        title: videoForm.name,        // form mein 'name' hai, backend 'title' maangta hai
-        allprice,
-        duration: videoForm.duration,
-      };
+      const payload = { title: videoForm.name, allprice, duration: videoForm.duration };
 
       if (editingVideoId) {
         await fetch(`${VIDEO_PLANS_URL}/${editingVideoId}`, {
@@ -292,7 +254,7 @@ export default function GymPlanPage() {
     }
   }
 
-  // ================= EDIT NON-VIDEO =================
+  // ================= EDIT =================
 
   function handleEdit(plan: GymPlan) {
     setEditingId(plan._id);
@@ -302,23 +264,23 @@ export default function GymPlanPage() {
       duration: safeStr(plan.duration),
       category: safeStr(plan.category) || category,
       featuresInput: Array.isArray(plan.features) ? plan.features.join("\n") : "",
-      prices: Array.isArray(plan.allprice) && plan.allprice.length > 0
-        ? plan.allprice.map((p) => ({ currencyCode: p.currencyCode, price: String(p.price) }))
-        : [{ currencyCode: "INR", price: "" }],
+      prices:
+        Array.isArray(plan.allprice) && plan.allprice.length > 0
+          ? plan.allprice.map((p) => ({ currencyCode: p.currencyCode, price: String(p.price) }))
+          : [{ currencyCode: "INR", price: "" }],
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  // ================= EDIT VIDEO – form mein 'name' fill karo =================
-
   function handleVideoEdit(plan: VideoPlan) {
     setEditingVideoId(plan._id);
     setVideoForm({
-      name: safeStr(plan.name),      // GET se 'name' aaya, form mein 'name' daalo
+      name: safeStr(plan.name),
       duration: safeStr(plan.duration),
-      prices: Array.isArray(plan.allprice) && plan.allprice.length > 0
-        ? plan.allprice.map((p) => ({ currencyCode: p.currencyCode, price: String(p.price) }))
-        : [{ currencyCode: "INR", price: "" }],
+      prices:
+        Array.isArray(plan.allprice) && plan.allprice.length > 0
+          ? plan.allprice.map((p) => ({ currencyCode: p.currencyCode, price: String(p.price) }))
+          : [{ currencyCode: "INR", price: "" }],
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -372,7 +334,7 @@ export default function GymPlanPage() {
 
       <section className="banner-page">
 
-        {/* ================= CATEGORY TABS ================= */}
+        {/* CATEGORY TABS */}
         <div style={{ display: "flex", gap: 10, marginBottom: 28, flexWrap: "wrap" }}>
           {["transformation", "diet", "video"].map((cat) => (
             <button
@@ -404,7 +366,7 @@ export default function GymPlanPage() {
           ))}
         </div>
 
-        {/* ================= VIDEO FORM – 'name' field ================= */}
+        {/* VIDEO FORM */}
         {isVideo && (
           <form className="banner-form" onSubmit={handleVideoSubmit}>
             <h2>{editingVideoId ? "Update Video Plan" : "Create Video Plan"}</h2>
@@ -423,23 +385,13 @@ export default function GymPlanPage() {
               />
             </div>
 
-            {/* PRICES */}
             <div style={{ marginTop: 20 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
                 <strong>Prices</strong>
                 <button
                   type="button"
                   onClick={addVideoPriceRow}
-                  style={{
-                    padding: "4px 14px",
-                    borderRadius: 8,
-                    background: "#111",
-                    color: "#fff",
-                    border: "none",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    fontSize: 13,
-                  }}
+                  style={{ padding: "4px 14px", borderRadius: 8, background: "#111", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer", fontSize: 13 }}
                 >
                   + Add Currency
                 </button>
@@ -468,15 +420,7 @@ export default function GymPlanPage() {
                     <button
                       type="button"
                       onClick={() => removeVideoPriceRow(index)}
-                      style={{
-                        padding: "8px 14px",
-                        borderRadius: 8,
-                        background: "#ef4444",
-                        color: "#fff",
-                        border: "none",
-                        fontWeight: 700,
-                        cursor: "pointer",
-                      }}
+                      style={{ padding: "8px 14px", borderRadius: 8, background: "#ef4444", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer" }}
                     >
                       ✕
                     </button>
@@ -491,26 +435,23 @@ export default function GymPlanPage() {
           </form>
         )}
 
-        {/* ================= NON-VIDEO FORM (transformation / diet) ================= */}
+        {/* NON-VIDEO FORM */}
         {!isVideo && (
           <form className="banner-form" onSubmit={handleSubmit}>
             <h2>{editingId ? "Update Plan" : "Create Plan"}</h2>
             <div className="banner-form-grid">
-
               <input
                 required
                 placeholder="Plan Name"
                 value={form.name}
                 onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
               />
-
               <input
                 required
                 placeholder="Duration (e.g. 3 months)"
                 value={form.duration}
                 onChange={(e) => setForm((p) => ({ ...p, duration: e.target.value }))}
               />
-
               <select
                 value={form.category}
                 onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
@@ -524,17 +465,7 @@ export default function GymPlanPage() {
                 placeholder="Features (comma separated or one per line)&#10;e.g. Customized Workout Plan, Basic Diet Plan, WhatsApp Support"
                 value={form.featuresInput}
                 onChange={(e) => setForm((p) => ({ ...p, featuresInput: e.target.value }))}
-                style={{
-                  gridColumn: "1 / -1",
-                  padding: "12px 14px",
-                  borderRadius: 10,
-                  border: "1px solid #ddd",
-                  fontSize: 14,
-                  fontFamily: "inherit",
-                  resize: "vertical",
-                  minHeight: "100px",
-                  backgroundColor: "#fafafa",
-                }}
+                style={{ gridColumn: "1 / -1", padding: "12px 14px", borderRadius: 10, border: "1px solid #ddd", fontSize: 14, fontFamily: "inherit", resize: "vertical", minHeight: "100px", backgroundColor: "#fafafa" }}
               />
 
               <textarea
@@ -543,37 +474,17 @@ export default function GymPlanPage() {
                 placeholder="Description"
                 value={form.description}
                 onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                style={{
-                  gridColumn: "1 / -1",
-                  padding: "12px 14px",
-                  borderRadius: 10,
-                  border: "1px solid #ddd",
-                  fontSize: 14,
-                  fontFamily: "inherit",
-                  resize: "vertical",
-                  minHeight: "80px",
-                  backgroundColor: "#fafafa",
-                }}
+                style={{ gridColumn: "1 / -1", padding: "12px 14px", borderRadius: 10, border: "1px solid #ddd", fontSize: 14, fontFamily: "inherit", resize: "vertical", minHeight: "80px", backgroundColor: "#fafafa" }}
               />
             </div>
 
-            {/* PRICES */}
             <div style={{ marginTop: 20 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
                 <strong>Prices</strong>
                 <button
                   type="button"
                   onClick={addPriceRow}
-                  style={{
-                    padding: "4px 14px",
-                    borderRadius: 8,
-                    background: "#111",
-                    color: "#fff",
-                    border: "none",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    fontSize: 13,
-                  }}
+                  style={{ padding: "4px 14px", borderRadius: 8, background: "#111", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer", fontSize: 13 }}
                 >
                   + Add Currency
                 </button>
@@ -602,15 +513,7 @@ export default function GymPlanPage() {
                     <button
                       type="button"
                       onClick={() => removePriceRow(index)}
-                      style={{
-                        padding: "8px 14px",
-                        borderRadius: 8,
-                        background: "#ef4444",
-                        color: "#fff",
-                        border: "none",
-                        fontWeight: 700,
-                        cursor: "pointer",
-                      }}
+                      style={{ padding: "8px 14px", borderRadius: 8, background: "#ef4444", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer" }}
                     >
                       ✕
                     </button>
@@ -625,7 +528,7 @@ export default function GymPlanPage() {
           </form>
         )}
 
-        {/* ================= LIST ================= */}
+        {/* LIST */}
         <div className="banner-section">
           <div className="section-header">
             <h2 style={{ textTransform: "capitalize" }}>{category} Plans</h2>
@@ -636,14 +539,9 @@ export default function GymPlanPage() {
             videoPlans.length === 0 ? (
               <div className="empty-state">No video plans found</div>
             ) : (
-              <div className="banner-grid">
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(280px, 1fr))",gap:20,alignItems:"stretch"}}>
                 {videoPlans.map((plan) => (
-                  <VideoPlanCard
-                    key={plan._id}
-                    plan={plan}
-                    onEdit={handleVideoEdit}
-                    onDelete={handleVideoDelete}
-                  />
+                  <VideoPlanCard key={plan._id} plan={plan} onEdit={handleVideoEdit} onDelete={handleVideoDelete} />
                 ))}
               </div>
             )
@@ -651,14 +549,9 @@ export default function GymPlanPage() {
             plans.length === 0 ? (
               <div className="empty-state">No plans found</div>
             ) : (
-              <div className="banner-grid">
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(280px, 1fr))",gap:20,alignItems:"stretch"}}>
                 {plans.map((plan) => (
-                  <PlanCard
-                    key={plan._id}
-                    plan={plan}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                  />
+                  <PlanCard key={plan._id} plan={plan} onEdit={handleEdit} onDelete={handleDelete} />
                 ))}
               </div>
             )
@@ -682,19 +575,48 @@ function PlanCard({
   onDelete: (id: string) => void;
 }) {
   return (
-    <div className="banner-card">
-      <div className="banner-card-body" style={{ padding: 20 }}>
-        <div className="banner-actions" style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 12 }}>
-          <button className="banner-icon-btn banner-edit-btn" onClick={() => onEdit(plan)} type="button">Edit</button>
-          <button className="banner-icon-btn banner-delete-btn" onClick={() => onDelete(plan._id)} type="button">Delete</button>
-        </div>
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #e8edf5",
+        borderRadius: 16,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      }}
+    >
+      {/* Card Body */}
+      <div style={{ padding: "20px 20px 16px", flex: 1 }}>
+        {/* Category badge */}
+        <span
+          style={{
+            display: "inline-block",
+            background: "#eef2ff",
+            color: "#3730a3",
+            fontSize: 11,
+            fontWeight: 700,
+            borderRadius: 20,
+            padding: "3px 10px",
+            textTransform: "capitalize",
+            letterSpacing: "0.05em",
+            marginBottom: 10,
+          }}
+        >
+          {plan.category}
+        </span>
 
-        <div className="banner-type" style={{ textTransform: "capitalize" }}>{plan.category}</div>
-        <h3 style={{ margin: "8px 0 4px" }}>{plan.name}</h3>
-        <p className="banner-duration">⏱ {plan.duration}</p>
+        <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
+          {plan.name}
+        </h3>
+        <p style={{ margin: "0 0 12px", fontSize: 12, color: "#94a3b8", fontWeight: 500 }}>
+          ⏱ {plan.duration}
+        </p>
 
+        {/* Prices */}
         {Array.isArray(plan.allprice) && plan.allprice.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
             {plan.allprice.map((p, i) => (
               <span
                 key={i}
@@ -703,9 +625,9 @@ function PlanCard({
                   border: "1px solid #e0e0e0",
                   borderRadius: 10,
                   padding: "4px 12px",
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: 700,
-                  color: "#111",
+                  color: "#312e81",
                 }}
               >
                 {p.symbol || p.currencyCode} {p.price}
@@ -714,33 +636,82 @@ function PlanCard({
           </div>
         )}
 
+        {/* Description */}
         {plan.description && (
-          <p style={{ marginTop: 10, lineHeight: 1.7, color: "#555", fontSize: 14 }}>{plan.description}</p>
+          <p style={{ margin: "0 0 12px", lineHeight: 1.6, color: "#555", fontSize: 13 }}>
+            {plan.description}
+          </p>
         )}
 
+        {/* Features */}
         {Array.isArray(plan.features) && plan.features.length > 0 && (
-          <ul style={{
-            marginTop: 12,
-            paddingLeft: 0,
-            lineHeight: 1.9,
-            fontSize: 14,
-            color: "#444",
-            listStyleType: "none",
-          }}>
+          <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
             {plan.features.map((f, i) => (
-              <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                <span style={{ color: "#22c55e", fontWeight: 700 }}>🟢</span>
+              <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6, fontSize: 13, color: "#444", lineHeight: 1.5 }}>
+                <span style={{ color: "#22c55e", fontWeight: 700, flexShrink: 0, marginTop: 1 }}>✓</span>
                 <span>{f}</span>
               </li>
             ))}
           </ul>
         )}
       </div>
+
+      {/* ✅ Action buttons — card ke BOTTOM mein, border se alag */}
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          padding: "14px 20px",
+          borderTop: "1px solid #f1f5f9",
+          background: "#fafbfd",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => onEdit(plan)}
+          style={{
+            flex: 1,
+            padding: "10px 0",
+            borderRadius: 10,
+            border: "1.5px solid #3b82f6",
+            background: "#eff6ff",
+            color: "#1d4ed8",
+            fontWeight: 700,
+            fontSize: 13,
+            cursor: "pointer",
+            transition: "background 0.15s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#dbeafe")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "#eff6ff")}
+        >
+          ✏️ Edit
+        </button>
+        <button
+          type="button"
+          onClick={() => onDelete(plan._id)}
+          style={{
+            flex: 1,
+            padding: "10px 0",
+            borderRadius: 10,
+            border: "1.5px solid #ef4444",
+            background: "#fef2f2",
+            color: "#dc2626",
+            fontWeight: 700,
+            fontSize: 13,
+            cursor: "pointer",
+            transition: "background 0.15s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#fee2e2")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "#fef2f2")}
+        >
+          🗑️ Delete
+        </button>
+      </div>
     </div>
   );
 }
 
-// ================= VIDEO PLAN CARD – 'name' display karega =================
+// ================= VIDEO PLAN CARD =================
 
 function VideoPlanCard({
   plan,
@@ -752,19 +723,47 @@ function VideoPlanCard({
   onDelete: (id: string) => void;
 }) {
   return (
-    <div className="banner-card">
-      <div className="banner-card-body" style={{ padding: 20 }}>
-        <div className="banner-actions" style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 12 }}>
-          <button className="banner-icon-btn banner-edit-btn" onClick={() => onEdit(plan)} type="button">Edit</button>
-          <button className="banner-icon-btn banner-delete-btn" onClick={() => onDelete(plan._id)} type="button">Delete</button>
-        </div>
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #e8edf5",
+        borderRadius: 16,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      }}
+    >
+      {/* Card Body */}
+      <div style={{ padding: "20px 20px 16px", flex: 1 }}>
+        {/* Video badge */}
+        <span
+          style={{
+            display: "inline-block",
+            background: "#fdf4ff",
+            color: "#7e22ce",
+            fontSize: 11,
+            fontWeight: 700,
+            borderRadius: 20,
+            padding: "3px 10px",
+            letterSpacing: "0.05em",
+            marginBottom: 10,
+          }}
+        >
+          🎬 Video
+        </span>
 
-        <div className="banner-type">Video</div>
-        <h3 style={{ margin: "8px 0 4px" }}>{plan.name}</h3>   {/* ✅ 'name' display */}
-        <p className="banner-duration">⏱ {plan.duration}</p>
+        <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
+          {plan.name}
+        </h3>
+        <p style={{ margin: "0 0 12px", fontSize: 12, color: "#94a3b8", fontWeight: 500 }}>
+          ⏱ {plan.duration}
+        </p>
 
+        {/* Prices */}
         {Array.isArray(plan.allprice) && plan.allprice.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {plan.allprice.map((p, i) => (
               <span
                 key={i}
@@ -773,9 +772,9 @@ function VideoPlanCard({
                   border: "1px solid #e0e0e0",
                   borderRadius: 10,
                   padding: "4px 12px",
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: 700,
-                  color: "#111",
+                  color: "#312e81",
                 }}
               >
                 {p.symbol || p.currencyCode} {p.price}
@@ -783,6 +782,58 @@ function VideoPlanCard({
             ))}
           </div>
         )}
+      </div>
+
+      {/* ✅ Action buttons — card ke BOTTOM mein */}
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          padding: "14px 20px",
+          borderTop: "1px solid #f1f5f9",
+          background: "#fafbfd",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => onEdit(plan)}
+          style={{
+            flex: 1,
+            padding: "10px 0",
+            borderRadius: 10,
+            border: "1.5px solid #3b82f6",
+            background: "#eff6ff",
+            color: "#1d4ed8",
+            fontWeight: 700,
+            fontSize: 13,
+            cursor: "pointer",
+            transition: "background 0.15s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#dbeafe")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "#eff6ff")}
+        >
+          ✏️ Edit
+        </button>
+        <button
+          type="button"
+          onClick={() => onDelete(plan._id)}
+          style={{
+            flex: 1,
+            padding: "10px 0",
+            borderRadius: 10,
+            border: "1.5px solid #ef4444",
+            background: "#fef2f2",
+            color: "#dc2626",
+            fontWeight: 700,
+            fontSize: 13,
+            cursor: "pointer",
+            transition: "background 0.15s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#fee2e2")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "#fef2f2")}
+        >
+          🗑️ Delete
+        </button>
       </div>
     </div>
   );

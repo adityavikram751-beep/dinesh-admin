@@ -87,13 +87,57 @@ export default function PaymentsPage() {
 
   function getChip(status?: string) {
     const s = status?.toLowerCase() || "";
+
     if (s === "success" || s === "completed" || s === "paid")
-      return <span className="chip chip-ok"><span className="dot dot-ok" />Success</span>;
+      return (
+        <span style={{
+          display: "inline-flex", alignItems: "center", gap: 5,
+          padding: "5px 11px", borderRadius: 999,
+          background: "#dcfce7", color: "#166534",
+          fontSize: 11, fontWeight: 700, whiteSpace: "nowrap"
+        }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", flexShrink: 0 }} />
+          Success
+        </span>
+      );
+
     if (s === "pending")
-      return <span className="chip chip-pend"><span className="dot dot-pend" />Pending</span>;
+      return (
+        <span style={{
+          display: "inline-flex", alignItems: "center", gap: 5,
+          padding: "5px 11px", borderRadius: 999,
+          background: "#fff7ed", color: "#9a3412",
+          fontSize: 11, fontWeight: 700, whiteSpace: "nowrap"
+        }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#f97316", flexShrink: 0 }} />
+          Pending
+        </span>
+      );
+
     if (s === "failed" || s === "error")
-      return <span className="chip chip-fail"><span className="dot dot-fail" />Failed</span>;
-    return <span className="chip chip-neutral"><span className="dot dot-neutral" />{status || "Unknown"}</span>;
+      return (
+        <span style={{
+          display: "inline-flex", alignItems: "center", gap: 5,
+          padding: "5px 11px", borderRadius: 999,
+          background: "#fef2f2", color: "#991b1b",
+          fontSize: 11, fontWeight: 700, whiteSpace: "nowrap"
+        }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#ef4444", flexShrink: 0 }} />
+          Failed
+        </span>
+      );
+
+    return (
+      <span style={{
+        display: "inline-flex", alignItems: "center", gap: 5,
+        padding: "5px 11px", borderRadius: 999,
+        background: "#f1f5f9", color: "#475569",
+        fontSize: 11, fontWeight: 700, whiteSpace: "nowrap"
+      }}>
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#94a3b8", flexShrink: 0 }} />
+        {status || "Unknown"}
+      </span>
+    );
   }
 
   function sym(c: string) {
@@ -355,27 +399,6 @@ export default function PaymentsPage() {
         .cm { font-size: 13px; font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .cs { font-size: 11px; color: #94a3b8; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .amt { font-size: 14px; font-weight: 700; color: #312e81; }
-
-        /* Chips */
-        .chip {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          padding: 5px 11px;
-          border-radius: 999px;
-          font-size: 11px;
-          font-weight: 700;
-          white-space: nowrap;
-        }
-        .chip-ok      { background: #dcfce7; color: #166534; }
-        .chip-pend    { background: #fff7ed; color: #9a3412; }
-        .chip-fail    { background: #fef2f2; color: #991b1b; }
-        .chip-neutral { background: #f1f5f9; color: #475569; }
-        .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-        .dot-ok      { background: #22c55e; }
-        .dot-pend    { background: #f97316; }
-        .dot-fail    { background: #ef4444; }
-        .dot-neutral { background: #94a3b8; }
 
         /* Mobile cards */
         .m-cards { display: none; flex-direction: column; gap: 10px; }
