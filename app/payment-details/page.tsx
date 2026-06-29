@@ -23,7 +23,7 @@ type ApiResponse = {
   payments: Payment[];
 };
 
-const baseUrl = "https://dinesh-sagel-backend.onrender.com";
+const baseUrl = "https://api.dineshsehgal.com";
 const tokenKey = "fitadmin_token";
 
 function normalizeToken(token: string | null) {

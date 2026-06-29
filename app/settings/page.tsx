@@ -16,7 +16,7 @@ type User = {
 // ================= CONSTANTS =================
 
 const BASE_URL =
-  "https://dinesh-sagel-backend.onrender.com";
+  "https://api.dineshsehgal.com";
 
 const tokenKey =
   "fitadmin_token";

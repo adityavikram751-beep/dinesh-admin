@@ -109,7 +109,7 @@ export default function BlogPage() {
 
       const signatureResponse =
         await fetch(
-          "https://dinesh-sagel-backend.onrender.com/api/admin/auth/generate-upload-signature",
+          "https://api.dineshsehgal.com/api/admin/auth/generate-upload-signature",
           {
             method: "POST",
 

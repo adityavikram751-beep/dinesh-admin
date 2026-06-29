@@ -1,5 +1,5 @@
 export const API_BASE_URL =
-  "https://dinesh-sagel-backend.onrender.com";
+  "https://api.dineshsehgal.com";
 
 // ================= TYPES =================
 

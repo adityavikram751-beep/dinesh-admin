@@ -5,7 +5,7 @@ import type { FormEvent } from "react";
 import AdminShell from "../components/AdminShell";
 import { apiRequest } from "../lib/api";
 
-const VIDEO_PLANS_URL = "https://dinesh-sagel-backend.onrender.com/api/video-plans";
+const VIDEO_PLANS_URL = "https://api.dineshsehgal.com/api/video-plans";
 
 // ================= TYPES =================
 

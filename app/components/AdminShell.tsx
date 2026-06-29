@@ -13,7 +13,7 @@ import { icons } from "./Icons";
 const storageKey = "fitadmin_logged_in";
 const tokenKey = "fitadmin_token";
 const authCookieKey = "fitadmin_auth";
-const BASE_URL = "https://dinesh-sagel-backend.onrender.com";
+const BASE_URL = "https://api.dineshsehgal.com";
 
 function normalizeToken(token: string | null) {
   if (!token || token === "null" || token === "undefined") return null;
@@ -91,7 +91,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       window.speechSynthesis.speak(announcement);
     }
 
-    const socket = io("https://dinesh-sagel-backend.onrender.com", {
+    const socket = io("https://api.dineshsehgal.com", {
       auth: { token },
       transports: ["websocket"],
     });
