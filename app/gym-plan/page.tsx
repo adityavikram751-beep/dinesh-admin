@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import AdminShell from "../components/AdminShell";
 import { apiRequest } from "../lib/api";
@@ -116,6 +116,11 @@ export default function GymPlanPage() {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState("");
 
+  // Ref jo form ke bilkul top par baitha hai — Edit click par isi tak scroll karenge.
+  // scrollIntoView har scroll container (window ho ya AdminShell ka koi inner div) ke
+  // liye kaam karta hai, isliye window.scrollTo se zyada reliable hai.
+  const formTopRef = useRef<HTMLDivElement>(null);
+
   const isVideo = category === "video";
 
   useEffect(() => {
@@ -125,6 +130,13 @@ export default function GymPlanPage() {
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(""), 2500);
+  }
+
+  function scrollToFormTop() {
+    // Pehle asli scrollable container tak scrollIntoView try karo
+    formTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Extra safety: agar page khud bhi scroll ho rakha hai (window level), use bhi top kar do
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   // ================= LOAD =================
@@ -269,7 +281,7 @@ export default function GymPlanPage() {
           ? plan.allprice.map((p) => ({ currencyCode: p.currencyCode, price: String(p.price) }))
           : [{ currencyCode: "INR", price: "" }],
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    scrollToFormTop();
   }
 
   function handleVideoEdit(plan: VideoPlan) {
@@ -282,7 +294,7 @@ export default function GymPlanPage() {
           ? plan.allprice.map((p) => ({ currencyCode: p.currencyCode, price: String(p.price) }))
           : [{ currencyCode: "INR", price: "" }],
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    scrollToFormTop();
   }
 
   // ================= DELETE =================
@@ -333,6 +345,8 @@ export default function GymPlanPage() {
       )}
 
       <section className="banner-page">
+        {/* Scroll target — Edit click par yahi tak scroll hota hai */}
+        <div ref={formTopRef} />
 
         {/* CATEGORY TABS */}
         <div style={{ display: "flex", gap: 10, marginBottom: 28, flexWrap: "wrap" }}>

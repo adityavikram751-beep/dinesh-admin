@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 
 import AdminShell from "../components/AdminShell";
@@ -32,6 +32,11 @@ export default function BannerPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
 
+  // Ref jo form ke bilkul top par baitha hai — Edit click par isi tak scroll karenge.
+  // scrollIntoView har scroll container (window ho ya AdminShell ke andar koi inner div)
+  // ke liye kaam karta hai, isliye sirf window.scrollTo se zyada reliable hai.
+  const formTopRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     loadBanners();
   }, []);
@@ -52,6 +57,13 @@ export default function BannerPage() {
     } catch (error) {
       console.log(error);
     }
+  }
+
+  function scrollToFormTop() {
+    // Pehle asli scrollable container tak scrollIntoView try karo
+    formTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Extra safety: agar page khud bhi scroll ho rakha hai (window level), use bhi top kar do
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -104,7 +116,7 @@ export default function BannerPage() {
       bannerfor: item.bannerfor || "home",
     });
     setPreview(item.imageUrl || "");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    scrollToFormTop();
   }
 
   async function handleDelete(id: string) {
@@ -119,6 +131,9 @@ export default function BannerPage() {
   return (
     <AdminShell>
       <section className="banner-page">
+        {/* Scroll target — Edit click par yahi tak scroll hota hai */}
+        <div ref={formTopRef} />
+
         <form className="banner-form" onSubmit={handleSubmit}>
           <h2>{editingId ? "Update Banner" : "Create Banner"}</h2>
 
